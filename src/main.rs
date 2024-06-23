@@ -1,3 +1,5 @@
+use core::panic;
+
 use clap::Parser;
 use colored::{ColoredString, Colorize};
 use reqwest::{Client, Error, Response};
@@ -52,10 +54,10 @@ async fn get_geoip() -> Option<LatLong> {
 struct Args {
     #[arg(short, long, value_name = "ICAO code for an Airfield.")]
     airfield: Option<String>,
-    #[arg(long, value_name = "Latitude")]
-    latitude: Option<f32>,
-    #[arg(long, value_name = "Longitude")]
-    longitude: Option<f32>,
+    #[arg(long = "lat", value_name = "Latitude")]
+    latitude: Option<f64>,
+    #[arg(long = "lon", value_name = "Longitude")]
+    longitude: Option<f64>,
 }
 
 struct Config {
@@ -69,6 +71,7 @@ struct Secrets {
 struct Metar {
     icao_code: String,
     fields: Vec<MetarField>,
+    exact_match: bool,
 }
 
 enum MetarField {
@@ -107,11 +110,16 @@ impl Metar {
         Metar {
             icao_code: "EDRK".to_string(),
             fields: vec![MetarField::Visibility(vis)],
+            exact_match: false,
         }
     }
 
     fn colorise(self) -> ColoredString {
-        let mut coloured_string: ColoredString = self.icao_code.bright_white().on_blue();
+        let mut coloured_string: ColoredString = if self.exact_match {
+            self.icao_code.bright_white().on_blue()
+        } else {
+            self.icao_code.bright_white().on_yellow()
+        };
 
         for field in self.fields {
             coloured_string = format!("{} {}", coloured_string, field.colourise()).into();
@@ -129,22 +137,56 @@ fn get_secrets() -> Secrets {
     }
 }
 
-fn get_config() -> Config {
-    let _args = Args::parse();
+async fn get_config(secrets: &Secrets) -> Config {
+    let args = Args::parse();
 
+    if let Some(icao) = args.airfield {
+        if check_icao_code(&icao, secrets).await {
+            return Config {
+                position: Position::Airfield(icao),
+            };
+        } else {
+            panic!("No such Airfield: {}.", icao);
+        }
+    } else if let Some(lat) = args.latitude {
+        if let Some(long) = args.longitude {
+            return Config {
+                position: Position::LatLong(LatLong(lat, long)),
+            };
+        } else {
+            println!("Please provide both Latitude and Longitude. Defaulting to geoip...");
+        }
+    }
     Config {
         position: Position::GeoIP,
-        // position: Position::LatLong(LatLong(55., 9.)),
     }
 }
 
-async fn get_weather(config: &Config, secrets: Secrets) -> ColoredString {
+async fn check_icao_code(icao: &String, secrets: &Secrets) -> bool {
+    let uri = format!("https://avwx.rest/api/station/{}", icao);
+
+    let resp = Client::new()
+        .get(uri)
+        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
+        .send()
+        .await;
+
+    match resp {
+        Ok(resp) => match resp.json::<Value>().await {
+            Ok(json) => json.get("error").is_none(),
+            Err(_) => false,
+        },
+        Err(_) => false,
+    }
+}
+
+async fn get_weather(config: &Config, secrets: &Secrets) -> ColoredString {
     let json = request_wx(config, secrets).await.expect("Request failed.");
     let metar = Metar::from_json(json);
     metar.colorise()
 }
 
-async fn request_wx(config: &Config, secrets: Secrets) -> Result<Value, Error> {
+async fn request_wx(config: &Config, secrets: &Secrets) -> Result<Value, Error> {
     let position = config.position.get_location().await;
 
     let uri = format!(
@@ -166,8 +208,8 @@ async fn request_wx(config: &Config, secrets: Secrets) -> Result<Value, Error> {
 #[tokio::main]
 async fn main() {
     let secrets = get_secrets();
-    let config = get_config();
-    let wx_string = get_weather(&config, secrets).await;
+    let config = get_config(&secrets).await;
+    let wx_string = get_weather(&config, &secrets).await;
 
     println!("{}", wx_string);
 }
