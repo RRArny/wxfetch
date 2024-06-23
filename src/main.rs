@@ -1,4 +1,4 @@
-use clap::{command, Parser};
+use clap::Parser;
 use colored::{ColoredString, Colorize};
 use reqwest::{Client, Error, Response};
 use serde_json::Value;
@@ -29,8 +29,22 @@ impl Position {
 struct LatLong(f64, f64);
 
 async fn get_geoip() -> Option<LatLong> {
-    let _goip_api = "http://ip-api.com/json/";
-    todo!()
+    let response = Client::new()
+        .get("http://ip-api.com/json/")
+        .send()
+        .await
+        .ok()?;
+    let json: Value = response.json().await.ok()?;
+
+    let success = json.get("status")?;
+    if *success != *"success" {
+        return None;
+    }
+
+    let lat = json.get("lat")?.as_f64()?;
+    let long = json.get("lon")?.as_f64()?;
+
+    Some(LatLong(lat, long))
 }
 
 #[derive(Parser, Debug)]
@@ -119,7 +133,8 @@ fn get_config() -> Config {
     let _args = Args::parse();
 
     Config {
-        position: Position::LatLong(LatLong(55., 9.)),
+        position: Position::GeoIP,
+        // position: Position::LatLong(LatLong(55., 9.)),
     }
 }
 
@@ -136,8 +151,6 @@ async fn request_wx(config: &Config, secrets: Secrets) -> Result<Value, Error> {
         "https://avwx.rest/api/metar/{}?onfail=nearest&options=info",
         position
     );
-
-    println!("{}", uri);
 
     let resp: Response = Client::new()
         .get(uri)
