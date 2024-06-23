@@ -1,0 +1,15 @@
+[package]
+name = "wxfetch"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.7", features = ["derive"] }
+colored = "2"
+regex = "1.10.5"
+reqwest = { version = "0.12.5", features = ["json"] }
+serde = "1.0.203"
+serde_json = "1.0.117"
+tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
+tokio-macros = "2.3.0"
+toml = "0.8.14"
