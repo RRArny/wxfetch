@@ -1,9 +1,11 @@
 use core::panic;
+use std::{fs::File, io::Read};
 
 use clap::Parser;
 use colored::{ColoredString, Colorize};
 use reqwest::{Client, Error, Response};
 use serde_json::Value;
+use toml::Table;
 
 #[derive(Debug, Clone)]
 enum Position {
@@ -75,7 +77,15 @@ struct Metar {
 }
 
 enum MetarField {
+    TimeStamp,
+    Wind,
+    WindVariability,
     Visibility(i32),
+    Temperature,
+    DewPoint,
+    Qnh,
+    WxCodes,
+    Remarks,
 }
 
 impl MetarField {
@@ -90,6 +100,14 @@ impl MetarField {
                     vis.to_string().red()
                 }
             }
+            MetarField::TimeStamp => todo!(),
+            MetarField::Wind => todo!(),
+            MetarField::WindVariability => todo!(),
+            MetarField::Temperature => todo!(),
+            MetarField::DewPoint => todo!(),
+            MetarField::Qnh => todo!(),
+            MetarField::WxCodes => todo!(),
+            MetarField::Remarks => todo!(),
         }
     }
 }
@@ -106,6 +124,8 @@ impl Metar {
                 .clone(),
         )
         .unwrap();
+
+        // let exact_match = is_exact_match();
 
         Metar {
             icao_code: "EDRK".to_string(),
@@ -130,10 +150,17 @@ impl Metar {
 }
 
 fn get_secrets() -> Secrets {
-    // let secrets = toml::Deserializer
+    let mut secrets_file = File::open("secrets.toml").expect("Couldn't secret keys.");
+    let mut contents = String::new();
+    secrets_file
+        .read_to_string(&mut contents)
+        .expect("Couldn't load secret keys.");
+    let secrets = contents.parse::<Table>().unwrap();
+
+    let key = secrets["avwx-key"]["avwx-api-key"].as_str().unwrap();
 
     Secrets {
-        avwx_api_key: "XXMWfeyKXH7emqYFW97jCNL17XU_iZFPg7aEEwP9ttc".to_string(),
+        avwx_api_key: key.to_string(),
     }
 }
 
