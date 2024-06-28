@@ -3,9 +3,13 @@ use colored::{ColoredString, Colorize};
 use crate::{Config, Position};
 use serde_json::Value;
 
+/// Represents a METAR report.
 pub struct Metar {
+    /// ICAO code of the issuing station.
     icao_code: String,
+    /// Contents of the report.
     fields: Vec<MetarField>,
+    /// True, if this METAR was issued by the exact station provided to WXfetch, false otherwise.
     exact_match: bool,
 }
 
@@ -82,6 +86,7 @@ impl Metar {
 fn get_visibility(json: &Value) -> Option<u64> {
     json.get("visibility")?.get("value")?.as_u64()
 }
+
 fn is_exact_match(json: &Value, config: &Config) -> bool {
     match &config.position {
         Position::Airfield(icao) => {
@@ -97,5 +102,32 @@ fn is_exact_match(json: &Value, config: &Config) -> bool {
         }
         Position::GeoIP => todo!(),
         Position::LatLong(_) => todo!(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_metar_from_json_icao() {
+        let json: Value = Value::from_str("").unwrap();
+        let config = Config {
+            position: Position::Airfield("EDRK".to_string()),
+        };
+        let metar = Metar::from_json(json, &config);
+        assert_eq!(metar.icao_code, "EDRK");
+    }
+
+    #[test]
+    fn test_metar_from_json_time() {
+        let json: Value = Value::from_str("").unwrap();
+        let config = Config {
+            position: Position::Airfield("EDRK".to_string()),
+        };
+        let metar = Metar::from_json(json, &config);
+        assert!(metar.fields.contains(&MetarField::TimeStamp));
     }
 }

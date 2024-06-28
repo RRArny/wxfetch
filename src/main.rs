@@ -2,7 +2,7 @@ use clap::Parser;
 use colored::ColoredString;
 use reqwest::{Client, Error, Response};
 use serde_json::Value;
-use std::{fs::File, io::Read};
+use std::{fmt::Display, fs::File, io::Read};
 use toml::Table;
 
 mod metar;
@@ -19,19 +19,23 @@ impl Position {
     async fn get_location(&self) -> String {
         match self {
             Self::Airfield(icao_code) => icao_code.to_string(),
-            Self::LatLong(LatLong(lat, long)) => format!("{},{}", lat, long),
-            Self::GeoIP => {
-                let LatLong(lat, long) = get_geoip()
-                    .await
-                    .expect("Could not get location based on IP. Try supplying position instead.");
-                format!("{},{}", lat, long)
-            }
+            Self::LatLong(latlong) => latlong.to_string(),
+            Self::GeoIP => get_geoip()
+                .await
+                .expect("Could not get location based on IP. Try supplying position instead.")
+                .to_string(),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 struct LatLong(f64, f64);
+
+impl Display for LatLong {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{},{}", self.0, self.1)
+    }
+}
 
 async fn get_geoip() -> Option<LatLong> {
     let response = Client::new()
@@ -42,7 +46,7 @@ async fn get_geoip() -> Option<LatLong> {
     let json: Value = response.json().await.ok()?;
 
     let success = json.get("status")?;
-    if *success != *"success" {
+    if success != "success" {
         return None;
     }
 
@@ -54,9 +58,9 @@ async fn get_geoip() -> Option<LatLong> {
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
-/// Console utility for accessing aviation weather information on the commmand line.
+/// Console utility for accessing aviation weather information from the commmand line.
 ///
-/// For more information see README.md or https://github.com/RRArny/wxfetch.
+/// For more information see README.md or <https://github.com/RRArny/wxfetch>.
 struct Args {
     #[arg(short, long, value_name = "ICAO code for an Airfield.")]
     airfield: Option<String>,
@@ -75,15 +79,13 @@ struct Secrets {
 }
 
 fn get_secrets() -> Secrets {
-    let msg = "Couldn't secret keys.";
+    let msg = "Could not load secret keys.";
     let mut secrets_file = File::open("secrets.toml").expect(msg);
     let mut contents = String::new();
-    secrets_file
-        .read_to_string(&mut contents)
-        .expect("Couldn't load secret keys.");
-    let secrets = contents.parse::<Table>().unwrap();
+    secrets_file.read_to_string(&mut contents).expect(msg);
+    let secrets = contents.parse::<Table>().expect(msg);
 
-    let key = secrets["avwx-key"]["avwx-api-key"].as_str().unwrap();
+    let key = secrets["avwx-key"]["avwx-api-key"].as_str().expect(msg);
 
     Secrets {
         avwx_api_key: key.to_string(),
@@ -134,15 +136,15 @@ async fn check_icao_code(icao: &String, secrets: &Secrets) -> bool {
 }
 
 async fn get_weather(config: &Config, secrets: &Secrets) -> ColoredString {
-    let json = request_wx(config, secrets).await.expect("Request failed.");
-    println!("{:?}", json);
+    let json = request_wx(config, secrets)
+        .await
+        .expect("Weather request failed.");
     let metar = Metar::from_json(json, config);
     metar.colorise()
 }
 
 async fn request_wx(config: &Config, secrets: &Secrets) -> Result<Value, Error> {
     let position = config.position.get_location().await;
-    println!("{:?}", config.position);
     let uri = format!(
         "https://avwx.rest/api/metar/{}?onfail=nearest&options=info",
         position
@@ -154,9 +156,15 @@ async fn request_wx(config: &Config, secrets: &Secrets) -> Result<Value, Error> 
         .send()
         .await?;
     println!("{:?}", resp);
-    let json: Value = resp.json().await?;
 
-    Ok(json)
+    match resp.error_for_status() {
+        Ok(resp) => {
+            let json: Value = resp.json().await?;
+            Ok(json)
+        }
+        // TODO Err: find nearest station, fetch wx, set exact_match to false.
+        Err(_) => todo!(),
+    }
 }
 
 #[tokio::main]
@@ -166,31 +174,4 @@ async fn main() {
     let wx_string = get_weather(&config, &secrets).await;
 
     println!("{}", wx_string);
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use super::*;
-
-    #[test]
-    fn test_metar_from_json_icao() {
-        let json: Value = Value::from_str("").unwrap();
-        let config = Config {
-            position: Position::Airfield("EDRK".to_string()),
-        };
-        let metar = Metar::from_json(json, &config);
-        assert_eq!(metar.icao_code, "EDRK");
-    }
-
-    #[test]
-    fn test_metar_from_json_time() {
-        let json: Value = Value::from_str("").unwrap();
-        let config = Config {
-            position: Position::Airfield("EDRK".to_string()),
-        };
-        let metar = Metar::from_json(json, &config);
-        assert!(metar.fields.contains(&MetarField::TimeStamp));
-    }
 }
