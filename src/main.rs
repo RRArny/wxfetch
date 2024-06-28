@@ -139,22 +139,13 @@ async fn get_weather(config: &Config, secrets: &Secrets) -> ColoredString {
     let json = request_wx(config, secrets)
         .await
         .expect("Weather request failed.");
-    let metar = Metar::from_json(json, config);
+    let metar = Metar::from_json(json, config).expect("Invalid weather data received...");
     metar.colorise()
 }
 
 async fn request_wx(config: &Config, secrets: &Secrets) -> Result<Value, Error> {
     let position = config.position.get_location().await;
-    let uri = format!(
-        "https://avwx.rest/api/metar/{}?onfail=nearest&options=info",
-        position
-    );
-
-    let resp: Response = Client::new()
-        .get(uri)
-        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
-        .send()
-        .await?;
+    let resp = send_api_call(position, secrets).await?;
     println!("{:?}", resp);
 
     match resp.error_for_status() {
@@ -162,9 +153,33 @@ async fn request_wx(config: &Config, secrets: &Secrets) -> Result<Value, Error> 
             let json: Value = resp.json().await?;
             Ok(json)
         }
-        // TODO Err: find nearest station, fetch wx, set exact_match to false.
-        Err(_) => todo!(),
+        Err(_) => {
+            let nearest_station_code: String = get_nearest_station(config, secrets);
+            send_api_call(nearest_station_code, secrets)
+                .await?
+                .json::<Value>()
+                .await
+        }
     }
+}
+
+async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, Error> {
+    let uri = format!(
+        "https://avwx.rest/api/metar/{}?onfail=nearest&options=info",
+        position
+    );
+    let resp: Response = Client::new()
+        .get(uri)
+        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
+        .send()
+        .await?;
+    Ok(resp)
+}
+
+fn get_nearest_station(_config: &Config, _secretss: &Secrets) -> String {
+    // let uri = format!("")
+
+    todo!()
 }
 
 #[tokio::main]
