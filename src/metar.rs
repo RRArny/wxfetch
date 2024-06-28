@@ -55,7 +55,7 @@ impl MetarField {
 }
 
 fn colourise_qnh(qnh: &i64) -> ColoredString {
-    qnh.to_string().color(if *qnh >= 1013 {
+    format!("Q{}", qnh).color(if *qnh >= 1013 {
         Color::Green
     } else {
         Color::Yellow
@@ -76,17 +76,38 @@ fn colourise_temperature(temp: &i64, dewpoint: &i64) -> ColoredString {
     format!("{}/{}", temp_str, dew_str).into()
 }
 
-fn colourise_wind_var(_low_dir: &i64, _hi_dirr: &i64) -> ColoredString {
-    todo!()
+fn colourise_wind_var(low_dir: &i64, hi_dir: &i64) -> ColoredString {
+    format!("{}V{}", low_dir, hi_dir).color(if hi_dir - low_dir < 45 {
+        Color::Green
+    } else {
+        Color::Yellow
+    })
 }
 
-fn colourise_wind(_direction: &i64, _strength: &i64, _gusts: &i64) -> ColoredString {
-    todo!()
+fn colourise_wind(direction: &i64, strength: &i64, gusts: &i64) -> ColoredString {
+    let dir_str = direction.to_string();
+    let strength_str = strength.to_string().color(if *strength > 15 {
+        Color::Red
+    } else {
+        Color::Green
+    });
+    let mut output: ColoredString = format!("{}{}", dir_str, strength_str).into();
+    if *gusts > 0 {
+        let gust_str = gusts.to_string().color(if gusts - strength > 5 {
+            Color::BrightRed
+        } else {
+            Color::Green
+        });
+        output = format!("{}G{}", output, gust_str).into();
+    }
+    output = format!("{}KT", output).into();
+    output
 }
 
 fn colourize_timestamp() -> ColoredString {
     // TODO compare timestamp now, if older than 6h red else if older than 1h yellow else green
-    todo!()
+    // todo!()
+    "280930Z".green()
 }
 
 fn colourise_visibility(vis: &u64) -> ColoredString {
@@ -101,6 +122,8 @@ fn colourise_visibility(vis: &u64) -> ColoredString {
 
 impl Metar {
     pub fn from_json(json: Value, config: &Config) -> Option<Self> {
+        // println!("{:?}", json);
+
         let mut station = String::new();
         if let Some(icao) = json.get("station") {
             station = icao.as_str()?.to_string();
@@ -158,7 +181,8 @@ impl Metar {
 
 fn get_timestamp(_json: &Value) -> Option<MetarField> {
     // TODO parse timestamp from json["time"]["dt"]
-    todo!()
+    // todo!()
+    Some(MetarField::TimeStamp)
 }
 
 fn get_qnh(json: &Value) -> Option<MetarField> {
@@ -190,8 +214,11 @@ fn get_wind_var(json: &Value) -> Option<MetarField> {
 fn get_winds(json: &Value) -> Option<MetarField> {
     let direction = json.get("wind_direction")?.get("value")?.as_i64()?;
     let strength = json.get("wind_speed")?.get("value")?.as_i64()?;
-    let gusts = json.get("wind_gust")?.get("value")?.as_i64()?;
-
+    let gust_value = json.get("wind_gust")?;
+    let mut gusts = 0;
+    if gust_value.is_object() {
+        gusts = gust_value.get("value")?.as_i64()?;
+    }
     Some(MetarField::Wind {
         direction,
         strength,
@@ -216,8 +243,7 @@ fn is_exact_match(json: &Value, config: &Config) -> bool {
                 false
             }
         }
-        Position::GeoIP => todo!(),
-        Position::LatLong(_) => todo!(),
+        _ => true,
     }
 }
 

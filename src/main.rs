@@ -38,11 +38,7 @@ impl Display for LatLong {
 }
 
 async fn get_geoip() -> Option<LatLong> {
-    let response = Client::new()
-        .get("http://ip-api.com/json/")
-        .send()
-        .await
-        .ok()?;
+    let response = reqwest::get("http://ip-api.com/json/").await.ok()?;
     let json: Value = response.json().await.ok()?;
 
     let success = json.get("status")?;
@@ -143,23 +139,21 @@ async fn get_weather(config: &Config, secrets: &Secrets) -> ColoredString {
     metar.colorise()
 }
 
-async fn request_wx(config: &Config, secrets: &Secrets) -> Result<Value, Error> {
+async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     let position = config.position.get_location().await;
-    let resp = send_api_call(position, secrets).await?;
-    println!("{:?}", resp);
+    let resp = send_api_call(position, secrets).await.ok()?;
 
-    match resp.error_for_status() {
-        Ok(resp) => {
-            let json: Value = resp.json().await?;
-            Ok(json)
-        }
-        Err(_) => {
-            let nearest_station_code: String = get_nearest_station(config, secrets);
-            send_api_call(nearest_station_code, secrets)
-                .await?
-                .json::<Value>()
-                .await
-        }
+    if resp.status().as_u16() == 200 {
+        resp.json().await.ok()
+    } else if let Some(nearest_station_code) = get_nearest_station(config, secrets).await {
+        send_api_call(nearest_station_code, secrets)
+            .await
+            .ok()?
+            .json::<Value>()
+            .await
+            .ok()
+    } else {
+        None
     }
 }
 
@@ -176,10 +170,36 @@ async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, 
     Ok(resp)
 }
 
-fn get_nearest_station(_config: &Config, _secretss: &Secrets) -> String {
-    // let uri = format!("")
+async fn get_nearest_station(_config: &Config, secrets: &Secrets) -> Option<String> {
+    let uri = format!(
+        "https://avwx.rest/api/station/{}?filter=latitude,longitude",
+        _config.position.get_location().await
+    );
+    let client = Client::new();
+    let resp = client
+        .get(uri)
+        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
+        .send()
+        .await
+        .ok()?;
 
-    todo!()
+    let body = resp.json::<Value>().await.ok()?;
+    let lat = body.get("latitude")?.as_f64()?;
+    let lon = body.get("longitude")?.as_f64()?;
+    let uri = format!(
+        "https://avwx.rest/api/station/near/{},{}?n=1&reporting=true",
+        lat, lon
+    );
+    let resp = client
+        .get(uri)
+        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
+        .send()
+        .await
+        .ok()?;
+    let value = &resp.json::<Value>().await.ok()?;
+    let station = value.get(0)?.get("station")?.get("icao")?.as_str()?;
+
+    Some(station.to_string())
 }
 
 #[tokio::main]
