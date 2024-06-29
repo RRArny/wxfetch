@@ -31,8 +31,36 @@ enum MetarField {
         dewpoint: i64,
     },
     Qnh(i64),
-    WxCodes,
-    Remarks,
+    Clouds(Clouds, i64),
+    WxCode(WxCode, WxCodeModifier),
+    Remarks(String),
+}
+
+#[derive(PartialEq, Eq)]
+enum Clouds {
+    Few,
+    Sct,
+    Brk,
+    Ovc,
+}
+
+#[derive(PartialEq, Eq)]
+enum WxCode {
+    Ra,
+    Ts,
+}
+
+#[derive(PartialEq, Eq)]
+enum WxCodeModifier {
+    Moderate,
+    Light,
+    Heavy,
+}
+
+impl From<&str> for WxCode {
+    fn from(_value: &str) -> Self {
+        todo!()
+    }
 }
 
 impl MetarField {
@@ -48,9 +76,15 @@ impl MetarField {
             MetarField::WindVariability { low_dir, hi_dir } => colourise_wind_var(low_dir, hi_dir),
             MetarField::Temperature { temp, dewpoint } => colourise_temperature(temp, dewpoint),
             MetarField::Qnh(qnh) => colourise_qnh(qnh),
-            MetarField::WxCodes => todo!(),
-            MetarField::Remarks => todo!(),
+            MetarField::WxCode(_wxcode, _modifier) => todo!(),
+            MetarField::Remarks(str) => str.black().on_white(),
+            MetarField::Clouds(_, _) => todo!(),
         }
+    }
+
+    fn wxcode_from_str(_repr: &str) -> MetarField {
+        // todo!()
+        MetarField::WxCode(WxCode::Ra, WxCodeModifier::Light)
     }
 }
 
@@ -155,6 +189,12 @@ impl Metar {
             fields.push(qnh);
         }
 
+        fields.append(&mut get_wxcodes(&json));
+
+        if let Some(rmks) = get_remarks(&json) {
+            fields.push(rmks);
+        }
+
         let exact_match = is_exact_match(&json, config);
 
         Some(Metar {
@@ -177,6 +217,23 @@ impl Metar {
 
         coloured_string
     }
+}
+
+fn get_wxcodes(json: &Value) -> Vec<MetarField> {
+    let mut result: Vec<MetarField> = Vec::new();
+    if let Some(wxcodes) = json.get("wx_codes").and_then(|x| x.as_array()) {
+        for code in wxcodes {
+            if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
+                result.push(MetarField::wxcode_from_str(repr));
+            }
+        }
+    }
+    result
+}
+
+fn get_remarks(json: &Value) -> Option<MetarField> {
+    let rmks = json.get("remarks")?.as_str()?.to_string();
+    Some(MetarField::Remarks(rmks))
 }
 
 fn get_timestamp(_json: &Value) -> Option<MetarField> {

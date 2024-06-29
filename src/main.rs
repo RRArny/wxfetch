@@ -81,11 +81,12 @@ fn get_secrets() -> Secrets {
     secrets_file.read_to_string(&mut contents).expect(msg);
     let secrets = contents.parse::<Table>().expect(msg);
 
-    let key = secrets["avwx-key"]["avwx-api-key"].as_str().expect(msg);
+    let avwx_api_key = secrets["avwx-key"]["avwx-api-key"]
+        .as_str()
+        .expect(msg)
+        .to_string();
 
-    Secrets {
-        avwx_api_key: key.to_string(),
-    }
+    Secrets { avwx_api_key }
 }
 
 async fn get_config(secrets: &Secrets) -> Config {
@@ -170,10 +171,10 @@ async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, 
     Ok(resp)
 }
 
-async fn get_nearest_station(_config: &Config, secrets: &Secrets) -> Option<String> {
+async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<String> {
     let uri = format!(
         "https://avwx.rest/api/station/{}?filter=latitude,longitude",
-        _config.position.get_location().await
+        config.position.get_location().await
     );
     let client = Client::new();
     let resp = client
