@@ -14,6 +14,8 @@ pub struct Metar {
     fields: Vec<MetarField>,
     /// True, if this METAR was issued by the exact station that was requested, false otherwise.
     exact_match: bool,
+    /// Units.
+    units: Units,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -86,7 +88,8 @@ fn colourise_wx_code(
     _proximity: &WxCodeProximity,
     _descriptor: &WxCodeDescription,
 ) -> ColoredString {
-    todo!()
+    // todo!()
+    format!("{}{}{}{}", _intensity, _descriptor, _code, _proximity).magenta()
 }
 
 fn colourise_qnh(qnh: &i64) -> ColoredString {
@@ -202,6 +205,12 @@ impl Metar {
             icao_code: station,
             fields,
             exact_match,
+            units: Units {
+                pressure: PressureUnit::Hpa,
+                altitude: AltitudeUnit::Ft,
+                wind_speed: SpeedUnit::Kt,
+                temperature: TemperatureUnit::C,
+            },
         })
     }
 
@@ -282,6 +291,34 @@ fn is_exact_match(station: &str, config: &Config) -> bool {
         Position::Airfield(icao) => station.eq_ignore_ascii_case(icao),
         _ => true,
     }
+}
+
+struct Units {
+    pressure: PressureUnit,
+    altitude: AltitudeUnit,
+    wind_speed: SpeedUnit,
+    temperature: TemperatureUnit,
+}
+
+enum PressureUnit {
+    Hpa,
+    Inhg,
+}
+
+enum AltitudeUnit {
+    Ft,
+    M,
+}
+
+enum SpeedUnit {
+    Kt,
+    Kph,
+    Mph,
+}
+
+enum TemperatureUnit {
+    C,
+    F,
 }
 
 #[cfg(test)]
