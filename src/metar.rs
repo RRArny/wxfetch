@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use colored::{Color, ColoredString, Colorize};
 
 use crate::{Config, Position};
@@ -14,59 +16,214 @@ pub struct Metar {
 }
 
 #[derive(PartialEq, Eq)]
+/// Elements of a METAR report.
 enum MetarField {
+    /// Issue time.
     TimeStamp,
+    /// Prevailing winds.
     Wind {
         direction: i64,
         strength: i64,
         gusts: i64,
     },
-    WindVariability {
-        low_dir: i64,
-        hi_dir: i64,
-    },
-    Visibility(u64),
-    Temperature {
-        temp: i64,
-        dewpoint: i64,
-    },
+    /// Provided if wind direction changing.
+    WindVariability { low_dir: i64, hi_dir: i64 },
+    /// Visibility.
+    Visibility(i64),
+    /// Temperature and dewpoint.
+    Temperature { temp: i64, dewpoint: i64 },
+    /// Altimeter setting.
     Qnh(i64),
+    /// Observed cloud layers.
     Clouds(Clouds, i64),
-    WxCode(WxCode, WxCodeModifier),
+    /// Prevailing weather conditions.
+    WxCode(WxCode, WxCodeIntensity, WxCodeProximity, WxCodeDescription),
+    /// Various remarks.
     Remarks(String),
 }
 
 #[derive(PartialEq, Eq)]
+/// Describes a cloud layer.
 enum Clouds {
+    /// Sky clear.
+    Skc,
+    /// Few. Up to 2 octas coverage.
     Few,
+    // Scattered. 3 - 4 octas coverage.
     Sct,
+    /// Broken. 5 - 7 octas coverage.
     Brk,
+    /// Overcast. 8 octas coverage.
     Ovc,
 }
 
 #[derive(PartialEq, Eq)]
+/// Standardised codes for weather phenomena.
 enum WxCode {
+    /// Rain.
     Ra,
-    Ts,
+    /// Drizzle.
+    Dz,
+    /// Hail (Diameter >= 5mm).
+    Gr,
+    /// Small Hail (Diameter < 5mm).
+    Gs,
+    /// Ice crystals.
+    Ic,
+    /// Ice pellets.
+    Pl,
+    /// Snow grains.
+    Sg,
+    /// Snow.
+    Sn,
+    /// Unknown precipitation (automated reports only).
+    Up,
+    /// Mist (visibility >= 1000m).
+    Br,
+    /// Widespread dust.
+    Du,
+    /// Fog (visibility >= 1000m).
+    Fg,
+    /// Smoke.
+    Fu,
+    /// Haze.
+    Hz,
+    /// Spray.
+    Py,
+    /// Sand.
+    Sa,
+    /// Volcanic ash.
+    Va,
+    /// Dust storm.
+    Ds,
+    /// Funnel clouds.
+    Fc,
+    /// Well-developed sand or dust whirls.
+    Po,
+    /// Squalls.
+    Sq,
+    /// Sandstorm.
+    Ss,
 }
 
 #[derive(PartialEq, Eq)]
-enum WxCodeModifier {
+/// Used to specify a weather phenomenon's intensity.
+enum WxCodeIntensity {
     Moderate,
     Light,
     Heavy,
 }
 
-impl From<&str> for WxCode {
-    fn from(_value: &str) -> Self {
-        todo!()
+#[derive(PartialEq, Eq)]
+/// Used to specify a weather phenomenon's distance from reporting staion.
+enum WxCodeProximity {
+    /// On station.
+    OnStation,
+    /// In vicinity of the station (distance 5 - 10 miles).
+    Vicinity,
+    /// More than 10 miles from station.
+    Distant,
+}
+
+#[derive(PartialEq, Eq)]
+/// Used to further specify a weather phenomenon.
+enum WxCodeDescription {
+    /// No description.
+    None,
+    /// Thunderstorm.
+    Ts,
+    /// Patches.
+    Bc,
+    /// Blowing.
+    Bl,
+    /// Low drifting.
+    Dr,
+    /// Freezing.
+    Fz,
+    /// Shallow.
+    Mi,
+    /// Partial.
+    Pr,
+    /// Shower(s).
+    Sh,
+}
+
+impl Display for WxCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str_repr: &str = match self {
+            WxCode::Ra => "RA",
+            WxCode::Dz => "DZ",
+            WxCode::Gr => "GR",
+            WxCode::Gs => "GS",
+            WxCode::Ic => "IC",
+            WxCode::Pl => "PL",
+            WxCode::Sg => "SG",
+            WxCode::Sn => "SN",
+            WxCode::Up => "UP",
+            WxCode::Br => "BR",
+            WxCode::Du => "DU",
+            WxCode::Fg => "FG",
+            WxCode::Fu => "FU",
+            WxCode::Hz => "HZ",
+            WxCode::Py => "PY",
+            WxCode::Sa => "SA",
+            WxCode::Va => "VA",
+            WxCode::Ds => "DS",
+            WxCode::Fc => "FC",
+            WxCode::Po => "PO",
+            WxCode::Sq => "SQ",
+            WxCode::Ss => "SS",
+        };
+        write!(f, "{}", str_repr)
+    }
+}
+
+impl Display for WxCodeIntensity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                WxCodeIntensity::Moderate => "",
+                WxCodeIntensity::Light => "-",
+                WxCodeIntensity::Heavy => "+",
+            }
+        )
+    }
+}
+
+impl Display for WxCodeProximity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str_repr: &str = match self {
+            WxCodeProximity::OnStation => "",
+            WxCodeProximity::Vicinity => "VC",
+            WxCodeProximity::Distant => "DSNT",
+        };
+        write!(f, "{}", str_repr)
+    }
+}
+
+impl Display for WxCodeDescription {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str_repr: &str = match self {
+            WxCodeDescription::None => "",
+            WxCodeDescription::Ts => "TS",
+            WxCodeDescription::Bc => "BC",
+            WxCodeDescription::Bl => "BL",
+            WxCodeDescription::Dr => "DR",
+            WxCodeDescription::Fz => "FZ",
+            WxCodeDescription::Mi => "MI",
+            WxCodeDescription::Pr => "PR",
+            WxCodeDescription::Sh => "SH",
+        };
+        write!(f, "{}", str_repr)
     }
 }
 
 impl MetarField {
     pub fn colourise(&self) -> ColoredString {
         match self {
-            Self::Visibility(vis) => colourise_visibility(vis),
+            MetarField::Visibility(vis) => colourise_visibility(vis),
             MetarField::TimeStamp => colourize_timestamp(),
             MetarField::Wind {
                 direction,
@@ -76,16 +233,32 @@ impl MetarField {
             MetarField::WindVariability { low_dir, hi_dir } => colourise_wind_var(low_dir, hi_dir),
             MetarField::Temperature { temp, dewpoint } => colourise_temperature(temp, dewpoint),
             MetarField::Qnh(qnh) => colourise_qnh(qnh),
-            MetarField::WxCode(_wxcode, _modifier) => todo!(),
+            MetarField::WxCode(code, intensity, proximity, descriptor) => {
+                colourise_wx_code(code, intensity, proximity, descriptor)
+            }
             MetarField::Remarks(str) => str.black().on_white(),
             MetarField::Clouds(_, _) => todo!(),
         }
     }
 
     fn wxcode_from_str(_repr: &str) -> MetarField {
-        // todo!()
-        MetarField::WxCode(WxCode::Ra, WxCodeModifier::Light)
+        // TODO
+        MetarField::WxCode(
+            WxCode::Ra,
+            WxCodeIntensity::Light,
+            WxCodeProximity::OnStation,
+            WxCodeDescription::None,
+        )
     }
+}
+
+fn colourise_wx_code(
+    _code: &WxCode,
+    _intensity: &WxCodeIntensity,
+    _proximity: &WxCodeProximity,
+    _descriptor: &WxCodeDescription,
+) -> ColoredString {
+    todo!()
 }
 
 fn colourise_qnh(qnh: &i64) -> ColoredString {
@@ -144,7 +317,7 @@ fn colourize_timestamp() -> ColoredString {
     "280930Z".green()
 }
 
-fn colourise_visibility(vis: &u64) -> ColoredString {
+fn colourise_visibility(vis: &i64) -> ColoredString {
     if *vis >= 6000 {
         vis.to_string().green()
     } else if *vis > 1500 {
@@ -271,11 +444,12 @@ fn get_wind_var(json: &Value) -> Option<MetarField> {
 fn get_winds(json: &Value) -> Option<MetarField> {
     let direction = json.get("wind_direction")?.get("value")?.as_i64()?;
     let strength = json.get("wind_speed")?.get("value")?.as_i64()?;
-    let gust_value = json.get("wind_gust")?;
-    let mut gusts = 0;
-    if gust_value.is_object() {
-        gusts = gust_value.get("value")?.as_i64()?;
-    }
+    let gusts = json
+        .get("wind_gust")
+        .and_then(|g| g.get("value"))
+        .and_then(|g| g.as_i64())
+        .unwrap_or(0);
+
     Some(MetarField::Wind {
         direction,
         strength,
@@ -283,19 +457,15 @@ fn get_winds(json: &Value) -> Option<MetarField> {
     })
 }
 
-fn get_visibility(json: &Value) -> Option<u64> {
-    json.get("visibility")?.get("value")?.as_u64()
+fn get_visibility(json: &Value) -> Option<i64> {
+    json.get("visibility")?.get("value")?.as_i64()
 }
 
 fn is_exact_match(json: &Value, config: &Config) -> bool {
     match &config.position {
         Position::Airfield(icao) => {
-            if let Some(station_string) = json.get("station") {
-                if let Some(station) = station_string.as_str() {
-                    station == icao
-                } else {
-                    false
-                }
+            if let Some(station) = json.get("station").and_then(|s| s.as_str()) {
+                station == icao
             } else {
                 false
             }
@@ -312,15 +482,13 @@ mod tests {
 
     #[test]
     fn test_metar_from_json_icao() {
-        let json: Value = Value::from_str("").unwrap();
+        let json: Value = Value::from_str("{\"station\":\"EDRK\"}").unwrap();
         let config = Config {
             position: Position::Airfield("EDRK".to_string()),
         };
-        if let Some(metar) = Metar::from_json(json, &config) {
-            assert_eq!(metar.icao_code, "EDRK");
-        } else {
-            panic!("Invalid Station code.");
-        }
+        let metar = Metar::from_json(json, &config);
+        assert!(metar.is_some());
+        assert_eq!(metar.unwrap().icao_code, "EDRK");
     }
 
     #[test]
@@ -329,10 +497,45 @@ mod tests {
         let config = Config {
             position: Position::Airfield("EDRK".to_string()),
         };
-        if let Some(metar) = Metar::from_json(json, &config) {
-            assert!(metar.fields.contains(&MetarField::TimeStamp));
-        } else {
-            panic!("Invalid time stamp.");
-        }
+
+        let metar = Metar::from_json(json, &config);
+        assert!(metar.is_some());
+        assert!(metar.unwrap().fields.contains(&MetarField::TimeStamp));
+    }
+
+    #[test]
+    fn test_is_exact_match_positive() {
+        let json: Value = Value::from_str("{\"station\": \"EDDK\"}").unwrap();
+        let config = Config {
+            position: Position::Airfield("EDDK".to_string()),
+        };
+        assert!(is_exact_match(&json, &config));
+    }
+
+    #[test]
+    fn test_is_exact_match_negative() {
+        let json: Value = Value::from_str("{\"station\": \"EDRK\"}").unwrap();
+        let config = Config {
+            position: Position::Airfield("EDDK".to_string()),
+        };
+        assert!(!is_exact_match(&json, &config));
+    }
+
+    #[test]
+    fn test_is_exact_match_geoip() {
+        let json: Value = Value::from_str("{\"station\": \"EDRK\"}").unwrap();
+        let config = Config {
+            position: Position::GeoIP,
+        };
+        assert!(is_exact_match(&json, &config));
+    }
+
+    #[test]
+    fn test_is_exact_match_latlong() {
+        let json: Value = Value::from_str("{\"station\": \"EDRK\"}").unwrap();
+        let config = Config {
+            position: Position::LatLong(crate::LatLong(10.0, 10.0)),
+        };
+        assert!(is_exact_match(&json, &config));
     }
 }

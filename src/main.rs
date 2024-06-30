@@ -154,6 +154,7 @@ async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
             .await
             .ok()
     } else {
+        println!("No nearest station...");
         None
     }
 }
@@ -187,6 +188,9 @@ async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<Strin
     let body = resp.json::<Value>().await.ok()?;
     let lat = body.get("latitude")?.as_f64()?;
     let lon = body.get("longitude")?.as_f64()?;
+
+    println!("{}/{}", lat, lon);
+
     let uri = format!(
         "https://avwx.rest/api/station/near/{},{}?n=1&reporting=true",
         lat, lon
@@ -197,7 +201,9 @@ async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<Strin
         .send()
         .await
         .ok()?;
+    println!("{:?}", resp);
     let value = &resp.json::<Value>().await.ok()?;
+    println!("val: {value}");
     let station = value.get(0)?.get("station")?.get("icao")?.as_str()?;
 
     Some(station.to_string())
