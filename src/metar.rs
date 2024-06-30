@@ -368,7 +368,7 @@ impl Metar {
             fields.push(rmks);
         }
 
-        let exact_match = is_exact_match(&json, config);
+        let exact_match = is_exact_match(&station, config);
 
         Some(Metar {
             icao_code: station,
@@ -461,15 +461,9 @@ fn get_visibility(json: &Value) -> Option<i64> {
     json.get("visibility")?.get("value")?.as_i64()
 }
 
-fn is_exact_match(json: &Value, config: &Config) -> bool {
+fn is_exact_match(station: &str, config: &Config) -> bool {
     match &config.position {
-        Position::Airfield(icao) => {
-            if let Some(station) = json.get("station").and_then(|s| s.as_str()) {
-                station == icao
-            } else {
-                false
-            }
-        }
+        Position::Airfield(icao) => station.eq_ignore_ascii_case(icao),
         _ => true,
     }
 }
@@ -505,37 +499,51 @@ mod tests {
 
     #[test]
     fn test_is_exact_match_positive() {
-        let json: Value = Value::from_str("{\"station\": \"EDDK\"}").unwrap();
         let config = Config {
             position: Position::Airfield("EDDK".to_string()),
         };
-        assert!(is_exact_match(&json, &config));
+        assert!(is_exact_match("EDDK", &config));
     }
 
     #[test]
     fn test_is_exact_match_negative() {
-        let json: Value = Value::from_str("{\"station\": \"EDRK\"}").unwrap();
         let config = Config {
             position: Position::Airfield("EDDK".to_string()),
         };
-        assert!(!is_exact_match(&json, &config));
+        assert!(!is_exact_match("EDRK", &config));
     }
 
     #[test]
     fn test_is_exact_match_geoip() {
-        let json: Value = Value::from_str("{\"station\": \"EDRK\"}").unwrap();
         let config = Config {
             position: Position::GeoIP,
         };
-        assert!(is_exact_match(&json, &config));
+        assert!(is_exact_match("EDRK", &config));
     }
 
     #[test]
     fn test_is_exact_match_latlong() {
-        let json: Value = Value::from_str("{\"station\": \"EDRK\"}").unwrap();
         let config = Config {
             position: Position::LatLong(crate::LatLong(10.0, 10.0)),
         };
-        assert!(is_exact_match(&json, &config));
+        assert!(is_exact_match("EDRK", &config));
+    }
+
+    #[test]
+    fn test_colourise_visibility_good() {
+        let vis_str: ColoredString = colourise_visibility(&9999);
+        assert_eq!(vis_str.fgcolor(), Some(Color::Green));
+    }
+
+    #[test]
+    fn test_colourise_visibility_medium() {
+        let vis_str: ColoredString = colourise_visibility(&2000);
+        assert_eq!(vis_str.fgcolor(), Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_colourise_visibility_bad() {
+        let vis_str: ColoredString = colourise_visibility(&1000);
+        assert_eq!(vis_str.fgcolor(), Some(Color::Red));
     }
 }
