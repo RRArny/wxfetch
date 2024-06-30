@@ -220,18 +220,6 @@ impl Metar {
     }
 }
 
-fn get_wxcodes(json: &Value) -> Vec<MetarField> {
-    let mut result: Vec<MetarField> = Vec::new();
-    if let Some(wxcodes) = json.get("wx_codes").and_then(|x| x.as_array()) {
-        for code in wxcodes {
-            if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
-                result.push(wxcode_from_str(repr));
-            }
-        }
-    }
-    result
-}
-
 fn get_remarks(json: &Value) -> Option<MetarField> {
     let rmks = json.get("remarks")?.as_str()?.to_string();
     Some(MetarField::Remarks(rmks))
