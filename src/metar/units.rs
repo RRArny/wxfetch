@@ -44,7 +44,7 @@ impl Units {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub enum PressureUnit {
     #[default]
     Hpa,

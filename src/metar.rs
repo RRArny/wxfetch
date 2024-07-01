@@ -40,22 +40,13 @@ enum MetarField {
     /// Temperature and dewpoint.
     Temperature { temp: i64, dewpoint: i64 },
     /// Altimeter setting.
-    Qnh(Qnh),
+    Qnh(i64, PressureUnit),
     /// Observed cloud layers.
     Clouds(Clouds, i64),
     /// Prevailing weather conditions.
     WxCode(WxCode, WxCodeIntensity, WxCodeProximity, WxCodeDescription),
     /// Various remarks.
     Remarks(String),
-}
-
-#[derive(PartialEq, Eq, Debug)]
-/// Describes QNH in both used units.
-enum Qnh {
-    /// Hectopascal. 1 hPa is roughly equal to 1 mBar.
-    Hpa(i64),
-    /// Inches of mercury. Argument is in units of 0.01 inHg! This is because floating point numbers can be pretty weird to handle. Rust's `f64` type does not satisfy the `Eq` trait.
-    Inhg(i64),
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -85,7 +76,7 @@ impl MetarField {
             } => colourise_wind(direction, strength, gusts),
             MetarField::WindVariability { low_dir, hi_dir } => colourise_wind_var(low_dir, hi_dir),
             MetarField::Temperature { temp, dewpoint } => colourise_temperature(temp, dewpoint),
-            MetarField::Qnh(qnh) => colourise_qnh(qnh),
+            MetarField::Qnh(qnh, unit) => colourise_qnh(qnh, unit),
             MetarField::WxCode(code, intensity, proximity, descriptor) => {
                 colourise_wx_code(code, intensity, proximity, descriptor)
             }
@@ -105,14 +96,14 @@ fn colourise_wx_code(
     format!("{}{}{}{}", _intensity, _descriptor, _code, _proximity).magenta()
 }
 
-fn colourise_qnh(qnh: &Qnh) -> ColoredString {
-    match qnh {
-        Qnh::Hpa(val) => format!("Q{}", val).color(if *val >= 1013 {
+fn colourise_qnh(qnh: &i64, unit: &PressureUnit) -> ColoredString {
+    match unit {
+        PressureUnit::Hpa => format!("Q{}", qnh).color(if *qnh >= 1013 {
             Color::Green
         } else {
             Color::Yellow
         }),
-        Qnh::Inhg(val) => format!("A{}", val / 100).color(if *val >= 2992 {
+        PressureUnit::Inhg => format!("A{}", qnh / 100).color(if *qnh >= 2992 {
             Color::Green
         } else {
             Color::Yellow
@@ -265,10 +256,7 @@ fn get_qnh(json: &Value, units: &Units) -> Option<MetarField> {
         qnh_val.as_i64()?
     };
 
-    match units.pressure {
-        PressureUnit::Hpa => Some(MetarField::Qnh(Qnh::Hpa(qnh))),
-        PressureUnit::Inhg => Some(MetarField::Qnh(Qnh::Inhg(qnh))),
-    }
+    Some(MetarField::Qnh(qnh, units.pressure.clone()))
 }
 
 fn get_temp(json: &Value, units: &Units) -> Option<MetarField> {
@@ -427,7 +415,7 @@ mod tests {
     #[test]
     fn test_get_qnh() {
         let json: Value = Value::from_str("{\"altimeter\":{\"value\": 1013}}").unwrap();
-        let expected = MetarField::Qnh(Qnh::Hpa(1013));
+        let expected = MetarField::Qnh(1013, PressureUnit::Hpa);
         let actual = get_qnh(&json, &Units::default());
         assert!(actual.is_some_and(|q| q == expected));
     }
@@ -435,7 +423,7 @@ mod tests {
     #[test]
     fn test_get_qnh_inhg() {
         let json: Value = Value::from_str("{\"altimeter\":{\"value\": 29.92}}").unwrap();
-        let expected = MetarField::Qnh(Qnh::Inhg(2992));
+        let expected = MetarField::Qnh(2992, PressureUnit::Inhg);
         let units = Units {
             pressure: PressureUnit::Inhg,
             altitude: AltitudeUnit::Ft,
