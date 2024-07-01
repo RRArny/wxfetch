@@ -177,6 +177,8 @@ pub(crate) fn wxcode_from_str(_repr: &str) -> MetarField {
     )
 }
 
+// impl From<&str> for FromIterator
+
 pub fn get_wxcodes(json: &Value) -> Vec<MetarField> {
     let mut result: Vec<MetarField> = Vec::new();
     if let Some(wxcodes) = json.get("wx_codes").and_then(|x| x.as_array()) {
