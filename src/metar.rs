@@ -1,12 +1,17 @@
-use std::ops::Mul;
-
-use colored::{Color, ColoredString, Colorize};
-
 use crate::{Config, Position};
+use chrono::DateTime;
+use chrono::FixedOffset;
+use chrono::TimeDelta;
+use chrono::Utc;
+use colored::{Color, ColoredString, Colorize};
 use serde_json::Value;
+use std::ops::Mul;
+use std::ops::Sub;
 
+mod clouds;
 mod units;
 mod wxcodes;
+use crate::metar::clouds::*;
 use crate::metar::units::*;
 use crate::metar::wxcodes::*;
 
@@ -18,27 +23,32 @@ pub struct Metar {
     fields: Vec<MetarField>,
     /// True, if this METAR was issued by the exact station that was requested, false otherwise.
     exact_match: bool,
-    /// Units.
-    units: Units,
+    // / Units.
+    // units: Units,
 }
 
 #[derive(PartialEq, Eq, Debug)]
 /// Elements of a METAR report.
-enum MetarField {
+pub enum MetarField {
     /// Issue time.
-    TimeStamp,
+    TimeStamp(DateTime<FixedOffset>),
     /// Prevailing winds.
     Wind {
         direction: i64,
         strength: i64,
         gusts: i64,
+        unit: SpeedUnit,
     },
     /// Provided if wind direction changing.
     WindVariability { low_dir: i64, hi_dir: i64 },
     /// Visibility.
     Visibility(i64),
     /// Temperature and dewpoint.
-    Temperature { temp: i64, dewpoint: i64 },
+    Temperature {
+        temp: i64,
+        dewpoint: i64,
+        unit: TemperatureUnit,
+    },
     /// Altimeter setting.
     Qnh(i64, PressureUnit),
     /// Observed cloud layers.
@@ -49,33 +59,23 @@ enum MetarField {
     Remarks(String),
 }
 
-#[derive(PartialEq, Eq, Debug)]
-/// Describes a cloud layer.
-enum Clouds {
-    /// Sky clear.
-    Skc,
-    /// Few. Up to 2 octas coverage.
-    Few,
-    // Scattered. 3 - 4 octas coverage.
-    Sct,
-    /// Broken. 5 - 7 octas coverage.
-    Brk,
-    /// Overcast. 8 octas coverage.
-    Ovc,
-}
-
 impl MetarField {
     pub fn colourise(&self) -> ColoredString {
         match self {
             MetarField::Visibility(vis) => colourise_visibility(vis),
-            MetarField::TimeStamp => colourize_timestamp(),
+            MetarField::TimeStamp(datetime) => colourize_timestamp(datetime),
             MetarField::Wind {
                 direction,
                 strength,
                 gusts,
-            } => colourise_wind(direction, strength, gusts),
+                unit,
+            } => colourise_wind(direction, strength, gusts, unit),
             MetarField::WindVariability { low_dir, hi_dir } => colourise_wind_var(low_dir, hi_dir),
-            MetarField::Temperature { temp, dewpoint } => colourise_temperature(temp, dewpoint),
+            MetarField::Temperature {
+                temp,
+                dewpoint,
+                unit,
+            } => colourise_temperature(temp, dewpoint, unit),
             MetarField::Qnh(qnh, unit) => colourise_qnh(qnh, unit),
             MetarField::WxCode(code, intensity, proximity, descriptor) => {
                 colourise_wx_code(code, intensity, proximity, descriptor)
@@ -111,7 +111,7 @@ fn colourise_qnh(qnh: &i64, unit: &PressureUnit) -> ColoredString {
     }
 }
 
-fn colourise_temperature(temp: &i64, dewpoint: &i64) -> ColoredString {
+fn colourise_temperature(temp: &i64, dewpoint: &i64, _unit: &TemperatureUnit) -> ColoredString {
     let temp_str = temp.to_string().color(if *temp > 0 {
         Color::BrightGreen
     } else {
@@ -133,7 +133,12 @@ fn colourise_wind_var(low_dir: &i64, hi_dir: &i64) -> ColoredString {
     })
 }
 
-fn colourise_wind(direction: &i64, strength: &i64, gusts: &i64) -> ColoredString {
+fn colourise_wind(
+    direction: &i64,
+    strength: &i64,
+    gusts: &i64,
+    _unit: &SpeedUnit,
+) -> ColoredString {
     let dir_str = direction.to_string();
     let strength_str = strength.to_string().color(if *strength > 15 {
         Color::Red
@@ -153,10 +158,18 @@ fn colourise_wind(direction: &i64, strength: &i64, gusts: &i64) -> ColoredString
     output
 }
 
-fn colourize_timestamp() -> ColoredString {
-    // TODO compare timestamp now, if older than 6h red else if older than 1h yellow else green
-    // todo!()
-    "280930Z".green()
+fn colourize_timestamp(datetime: &DateTime<FixedOffset>) -> ColoredString {
+    let now: DateTime<Utc> = Utc::now();
+    let utctime = datetime.to_utc();
+    let dt = now.sub(utctime);
+    let str_rep: String = utctime.format("%d%H%MZ").to_string();
+    str_rep.color(if dt.lt(&TimeDelta::hours(1)) {
+        Color::Green
+    } else if dt.lt(&TimeDelta::hours(6)) {
+        Color::Yellow
+    } else {
+        Color::Red
+    })
 }
 
 fn colourise_visibility(vis: &i64) -> ColoredString {
@@ -208,6 +221,8 @@ impl Metar {
 
         fields.append(&mut get_wxcodes(&json));
 
+        fields.append(&mut get_clouds(&json));
+
         if let Some(rmks) = get_remarks(&json) {
             fields.push(rmks);
         }
@@ -218,7 +233,6 @@ impl Metar {
             icao_code: station,
             fields,
             exact_match,
-            units,
         })
     }
 
@@ -242,10 +256,10 @@ fn get_remarks(json: &Value) -> Option<MetarField> {
     Some(MetarField::Remarks(rmks))
 }
 
-fn get_timestamp(_json: &Value) -> Option<MetarField> {
-    // TODO parse timestamp from json["time"]["dt"]
-    // todo!()
-    Some(MetarField::TimeStamp)
+fn get_timestamp(json: &Value) -> Option<MetarField> {
+    let datetime_str = json.get("time")?.get("dt")?.as_str()?;
+    let datetime = DateTime::parse_from_rfc3339(datetime_str).ok()?;
+    Some(MetarField::TimeStamp(datetime))
 }
 
 fn get_qnh(json: &Value, units: &Units) -> Option<MetarField> {
@@ -256,13 +270,17 @@ fn get_qnh(json: &Value, units: &Units) -> Option<MetarField> {
         qnh_val.as_i64()?
     };
 
-    Some(MetarField::Qnh(qnh, units.pressure.clone()))
+    Some(MetarField::Qnh(qnh, units.pressure))
 }
 
 fn get_temp(json: &Value, units: &Units) -> Option<MetarField> {
     let temp = json.get("temperature")?.get("value")?.as_i64()?;
     let dewpoint = json.get("dewpoint")?.get("value")?.as_i64()?;
-    Some(MetarField::Temperature { temp, dewpoint })
+    Some(MetarField::Temperature {
+        temp,
+        dewpoint,
+        unit: units.temperature,
+    })
 }
 
 fn get_wind_var(json: &Value) -> Option<MetarField> {
@@ -293,10 +311,11 @@ fn get_winds(json: &Value, units: &Units) -> Option<MetarField> {
         direction,
         strength,
         gusts,
+        unit: units.wind_speed,
     })
 }
 
-fn get_visibility(json: &Value, units: &Units) -> Option<MetarField> {
+fn get_visibility(json: &Value, _units: &Units) -> Option<MetarField> {
     let vis = json.get("visibility")?.get("value")?.as_i64()?;
     Some(MetarField::Visibility(vis))
 }
@@ -324,17 +343,16 @@ mod tests {
         assert!(metar.is_some_and(|m| m.icao_code == "EDRK"));
     }
 
-    // #[test]
-    // fn test_metar_from_json_time() {
-    //     let json: Value = Value::from_str("").unwrap();
-    //     let config = Config {
-    //         position: Position::Airfield("EDRK".to_string()),
-    //     };
-
-    //     let metar = Metar::from_json(json, &config);
-    //     assert!(metar.is_some());
-    //     assert!(metar.unwrap().fields.contains(&MetarField::TimeStamp));
-    // }
+    #[test]
+    fn test_metar_from_json_time() {
+        let json: Value = Value::from_str("{\"time\":{\"dt\":\"2024-06-21T05:50:00Z\"}}").unwrap();
+        let config = Config {
+            position: Position::Airfield("EDRK".to_string()),
+        };
+        let expected = DateTime::parse_from_rfc3339("2024-06-21T05:50:00Z").unwrap();
+        let metar = Metar::from_json(json, &config);
+        assert!(metar.is_some_and(|m| m.fields.contains(&MetarField::TimeStamp(expected))));
+    }
 
     #[test]
     fn test_is_exact_match_positive() {
@@ -393,6 +411,7 @@ mod tests {
             direction: 100,
             strength: 10,
             gusts: 15,
+            unit: SpeedUnit::Kt,
         };
         let actual = get_winds(&json, &Units::default());
         assert!(actual.is_some_and(|w| w == expected));
@@ -407,6 +426,7 @@ mod tests {
             direction: 100,
             strength: 10,
             gusts: 0,
+            unit: SpeedUnit::Kt,
         };
         let actual = get_winds(&json, &Units::default());
         assert!(actual.is_some_and(|w| w == expected));
@@ -451,6 +471,7 @@ mod tests {
         let expected: MetarField = MetarField::Temperature {
             temp: 10,
             dewpoint: 9,
+            unit: TemperatureUnit::C,
         };
         let actual = get_temp(&json, &Units::default());
         assert!(actual.is_some_and(|t| t == expected));

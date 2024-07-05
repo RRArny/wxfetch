@@ -1,0 +1,86 @@
+{
+  "altimeter": {
+    "repr": "Q1014",
+    "spoken": "one zero one four",
+    "value": 1014
+  },
+  "clouds": [
+    {
+      "altitude": 3,
+      "modifier": {},
+      "repr": "BKN003",
+      "type": "BKN"
+    }
+  ],
+  "density_altitude": 1782,
+  "dewpoint": {
+    "repr": "13",
+    "spoken": "one three",
+    "value": 13
+  },
+  "flight_rules": "LIFR",
+  "meta": {
+    "stations_updated": "2024-06-12",
+    "timestamp": "2024-07-02T17:18:29.800492Z"
+  },
+  "other": [],
+  "pressure_altitude": 1626,
+  "raw": "EDFH 021650Z 27007KT 240V310 6000 -DZ BKN003 13/13 Q1014",
+  "relative_humidity": 1,
+  "remarks": "",
+  "remarks_info": {},
+  "runway_visibility": [],
+  "sanitized": "EDFH 021650Z 27007KT 240V310 6000 -DZ BKN003 13/13 Q1014",
+  "station": "EDFH",
+  "temperature": {
+    "repr": "13",
+    "spoken": "one three",
+    "value": 13
+  },
+  "time": {
+    "dt": "2024-07-02T16:50:00Z",
+    "repr": "021650Z"
+  },
+  "units": {
+    "accumulation": "in",
+    "altimeter": "hPa",
+    "altitude": "ft",
+    "temperature": "C",
+    "visibility": "m",
+    "wind_speed": "kt"
+  },
+  "visibility": {
+    "repr": "6000",
+    "spoken": "six thousand",
+    "value": 6000
+  },
+  "wind_direction": {
+    "repr": "270",
+    "spoken": "two seven zero",
+    "value": 270
+  },
+  "wind_gust": {},
+  "wind_speed": {
+    "repr": "07",
+    "spoken": "seven",
+    "value": 7
+  },
+  "wind_variable_direction": [
+    {
+      "repr": "240",
+      "spoken": "two four zero",
+      "value": 240
+    },
+    {
+      "repr": "310",
+      "spoken": "three one zero",
+      "value": 310
+    }
+  ],
+  "wx_codes": [
+    {
+      "repr": "-DZ",
+      "value": "Light Drizzle"
+    }
+  ]
+}

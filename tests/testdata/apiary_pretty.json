@@ -1,0 +1,133 @@
+{
+  "meta": {
+    "timestamp": "2020-04-03T16:50:17.558193+00:00Z"
+  },
+  "altimeter": {
+    "repr": "A2966",
+    "value": 29.66,
+    "spoken": "two nine point six six"
+  },
+  "clouds": [
+    {
+      "repr": "FEW024",
+      "type": "FEW",
+      "altitude": 24,
+      "modifier": null,
+      "direction": null
+    },
+    {
+      "repr": "BKN036",
+      "type": "BKN",
+      "altitude": 36,
+      "modifier": null,
+      "direction": null
+    },
+    {
+      "repr": "OVC046",
+      "type": "OVC",
+      "altitude": 46,
+      "modifier": null,
+      "direction": null
+    }
+  ],
+  "flight_rules": "VFR",
+  "other": [],
+  "sanitized": "KJFK 031551Z 35021G29KT 10SM -RA FEW024 BKN036 OVC046 10/07 A2966 RMK AO2 PK WND 36029/1550 RAB10 SLP042 P0000 T01000067",
+  "visibility": {
+    "repr": "10",
+    "value": 10,
+    "spoken": "one zero"
+  },
+  "wind_direction": {
+    "repr": "350",
+    "value": 350,
+    "spoken": "three five zero"
+  },
+  "wind_gust": {
+    "repr": "29",
+    "value": 29,
+    "spoken": "two nine"
+  },
+  "wind_speed": {
+    "repr": "21",
+    "value": 21,
+    "spoken": "two one"
+  },
+  "wx_codes": [
+    {
+      "repr": "-RA",
+      "value": "Light Rain"
+    }
+  ],
+  "raw": "KJFK 031551Z 35021G29KT 10SM -RA FEW024 BKN036 OVC046 10/07 A2966 RMK AO2 PK WND 36029/1550 RAB10 SLP042 P0000 T01000067",
+  "station": "KJFK",
+  "time": {
+    "repr": "031551Z",
+    "dt": "2020-04-03T15:51:00+00:00Z"
+  },
+  "remarks": "RMK AO2 PK WND 36029/1550 RAB10 SLP042 P0000 T01000067",
+  "dewpoint": {
+    "repr": "07",
+    "value": 7,
+    "spoken": "seven"
+  },
+  "relative_humidity": 0.7994238789303805,
+  "remarks_info": {
+    "maximum_temperature_6": null,
+    "minimum_temperature_6": null,
+    "pressure_tendency": null,
+    "precip_36_hours": null,
+    "precip_24_hours": null,
+    "sunshine_minutes": null,
+    "codes": [
+      {
+        "repr": "AO2",
+        "value": "Automated with precipitation sensor"
+      },
+      {
+        "repr": "P0000",
+        "value": "Trace amount of rain in the last hour"
+      },
+      {
+        "repr": "RAB10",
+        "value": "Rain began at :10"
+      }
+    ],
+    "dewpoint_decimal": {
+      "repr": "0067",
+      "value": 6.7,
+      "spoken": "six point seven"
+    },
+    "maximum_temperature_24": null,
+    "minimum_temperature_24": null,
+    "precip_hourly": null,
+    "sea_level_pressure": {
+      "repr": "SLP042",
+      "value": 1004.2,
+      "spoken": "one zero zero four point two"
+    },
+    "snow_depth": null,
+    "temperature_decimal": {
+      "repr": "0100",
+      "value": 10,
+      "spoken": "one zero point zero"
+    }
+  },
+  "runway_visibility": [],
+  "temperature": {
+    "repr": "10",
+    "value": 10,
+    "spoken": "one zero"
+  },
+  "wind_variable_direction": [],
+  "density_altitude": -324,
+  "pressure_altitude": 273,
+  "units": {
+    "accumulation": "in",
+    "altimeter": "inHg",
+    "altitude": "ft",
+    "temperature": "C",
+    "visibility": "sm",
+    "wind_speed": "kt"
+  }
+}

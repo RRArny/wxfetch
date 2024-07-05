@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy)]
 pub struct Units {
     pub pressure: PressureUnit,
     pub altitude: AltitudeUnit,
@@ -44,7 +44,7 @@ impl Units {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Debug, Clone)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum PressureUnit {
     #[default]
     Hpa,
@@ -61,7 +61,7 @@ impl From<&str> for PressureUnit {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum AltitudeUnit {
     #[default]
     Ft,
@@ -78,7 +78,7 @@ impl From<&str> for AltitudeUnit {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum SpeedUnit {
     #[default]
     Kt,
@@ -97,7 +97,7 @@ impl From<&str> for SpeedUnit {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum TemperatureUnit {
     #[default]
     C,

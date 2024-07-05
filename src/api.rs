@@ -1,0 +1,91 @@
+use reqwest::{Client, Error, Response};
+use serde_json::Value;
+
+use crate::{Config, Secrets};
+
+pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
+    let position = config.position.get_location_str().await;
+    let resp = send_api_call(position, secrets).await.ok()?;
+
+    if resp.status().as_u16() == 200 {
+        resp.json().await.ok()
+    } else if let Some(nearest_station_code) = get_nearest_station(config, secrets).await {
+        send_api_call(nearest_station_code, secrets)
+            .await
+            .ok()?
+            .json::<Value>()
+            .await
+            .ok()
+    } else {
+        println!("No nearest station...");
+        None
+    }
+}
+
+async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, Error> {
+    let uri = format!(
+        "https://avwx.rest/api/metar/{}?onfail=nearest&options=info",
+        position
+    );
+    let resp: Response = Client::new()
+        .get(uri)
+        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
+        .send()
+        .await?;
+    Ok(resp)
+}
+
+async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<String> {
+    let uri = format!(
+        "https://avwx.rest/api/station/{}?filter=latitude,longitude",
+        config.position.get_location_str().await
+    );
+    let client = Client::new();
+    let resp = client
+        .get(uri)
+        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
+        .send()
+        .await
+        .ok()?;
+
+    let body = resp.json::<Value>().await.ok()?;
+    let lat = body.get("latitude")?.as_f64()?;
+    let lon = body.get("longitude")?.as_f64()?;
+
+    println!("{}/{}", lat, lon);
+
+    let uri = format!(
+        "https://avwx.rest/api/station/near/{},{}?n=1&reporting=true",
+        lat, lon
+    );
+    let resp = client
+        .get(uri)
+        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
+        .send()
+        .await
+        .ok()?;
+    println!("{:?}", resp);
+    let value = &resp.json::<Value>().await.ok()?;
+    println!("val: {value}");
+    let station = value.get(0)?.get("station")?.get("icao")?.as_str()?;
+
+    Some(station.to_string())
+}
+
+pub async fn check_icao_code(icao: &String, secrets: &Secrets) -> bool {
+    let uri = format!("https://avwx.rest/api/station/{}", icao);
+
+    let resp = Client::new()
+        .get(uri)
+        .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
+        .send()
+        .await;
+
+    match resp {
+        Ok(resp) => match resp.json::<Value>().await {
+            Ok(json) => json.get("error").is_none(),
+            Err(_) => false,
+        },
+        Err(_) => false,
+    }
+}
