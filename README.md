@@ -17,3 +17,11 @@ If there is any problem with the provided arguments WXfetch will print an error 
 ## Providing API keys
 
 For wxfetch to work you will need a free account on https://avwx.rest/. Once you have created an account, go ahead and copy `secrets_template.toml` to `secrets.toml` and paste in your API key.
+
+## Todos
+
+- [ ] clouds_from_str() in metar/clouds.rs
+  - Using Regex-crate
+- [ ] wxcode_from_str() in metar/wxcodes.rs
+  - Using Regex-crate
+  - Might need to change return type and MetarField::WxCode to accomodate multiple precipitation specifiers at the same time

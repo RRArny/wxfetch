@@ -51,7 +51,7 @@ pub enum MetarField {
     },
     /// Altimeter setting.
     Qnh(i64, PressureUnit),
-    /// Observed cloud layers.
+    /// Observed cloud layers. Altitude in FL (flight level).
     Clouds(Clouds, i64),
     /// Prevailing weather conditions.
     WxCode(WxCode, WxCodeIntensity, WxCodeProximity, WxCodeDescription),

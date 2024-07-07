@@ -15,7 +15,7 @@ impl Position {
             Self::LatLong(latlong) => latlong.to_string(),
             Self::GeoIP => get_geoip()
                 .await
-                .expect("Could not get location based on IP. Try supplying position instead.")
+                .expect("Could not get location based on IP. Try supplying position instead or check your internet connection.")
                 .to_string(),
         }
     }

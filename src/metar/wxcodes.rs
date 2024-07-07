@@ -175,15 +175,12 @@ impl WxCodeIntensity {
 
 impl Display for WxCodeIntensity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                WxCodeIntensity::Moderate => "",
-                WxCodeIntensity::Light => "-",
-                WxCodeIntensity::Heavy => "+",
-            }
-        )
+        let str_repr: &str = match self {
+            WxCodeIntensity::Moderate => "",
+            WxCodeIntensity::Light => "-",
+            WxCodeIntensity::Heavy => "+",
+        };
+        write!(f, "{}", str_repr)
     }
 }
 
@@ -219,7 +216,6 @@ pub(crate) fn wxcode_from_str(repr: &str) -> Option<MetarField> {
     // TODO
 
     let _regex_pattern = format!(
-        // "(?<intensity>{})?(?<code>{})+",
         "(?<intensity>{})?(?<descr>{})?(?<code>{})+(?<location>{})?",
         WxCodeIntensity::get_regex(),
         WxCodeDescription::get_regex(),
