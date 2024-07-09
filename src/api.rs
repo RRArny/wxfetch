@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use crate::{Config, Secrets};
 
+/// Given a Config and Secrets, sends a request to fetch a METAR and returns the report in JSON format wrapped in Some if successful, None otherwise.
 pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     let position = config.position.get_location_str().await;
     let resp = send_api_call(position, secrets).await.ok()?;
@@ -22,6 +23,7 @@ pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     }
 }
 
+/// Given a properly formattet position string and Secrets, requests METAR from AvWx and wraps the Response in a Result.
 async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, Error> {
     let uri = format!(
         "https://avwx.rest/api/metar/{}?onfail=nearest&options=info",
@@ -35,6 +37,7 @@ async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, 
     Ok(resp)
 }
 
+/// For a given Position in a Config as well as the necessary Secrets returns a String with the ICAO (or similar) code for the nearest reporting station.
 async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<String> {
     let uri = format!(
         "https://avwx.rest/api/station/{}?filter=latitude,longitude",
@@ -72,6 +75,7 @@ async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<Strin
     Some(station.to_string())
 }
 
+/// For a given ICAO code as String and the necessary Secrets makes request to AvWx to check if the code is valid.
 pub async fn check_icao_code(icao: &String, secrets: &Secrets) -> bool {
     let uri = format!("https://avwx.rest/api/station/{}", icao);
 

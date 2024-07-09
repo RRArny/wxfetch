@@ -36,7 +36,8 @@ struct Secrets {
 
 fn get_secrets() -> Secrets {
     let msg = "Could not load secret keys.";
-    let mut secrets_file = File::open("secrets.toml").expect(msg);
+    let secrets_filepath = std::env::var("HOME").expect(msg) + "/.config/wxfetch/secrets.toml";
+    let mut secrets_file = File::open(secrets_filepath).expect(msg);
     let mut contents = String::new();
     secrets_file.read_to_string(&mut contents).expect(msg);
     let secrets = contents.parse::<Table>().expect(msg);

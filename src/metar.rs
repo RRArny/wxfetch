@@ -139,19 +139,23 @@ fn colourise_wind(
     gusts: &i64,
     _unit: &SpeedUnit,
 ) -> ColoredString {
-    let dir_str = direction.to_string();
-    let strength_str = strength.to_string().color(if *strength > 15 {
-        Color::Red
-    } else {
-        Color::Green
-    });
-    let mut output: ColoredString = format!("{}{}", dir_str, strength_str).into();
-    if *gusts > 0 {
-        let gust_str = gusts.to_string().color(if gusts - strength > 5 {
-            Color::BrightRed
+    let dir_str = format!("{:03}", direction).to_string();
+    let strength_str = format!("{:02}", strength)
+        .to_string()
+        .color(if *strength > 15 {
+            Color::Red
         } else {
             Color::Green
         });
+    let mut output: ColoredString = format!("{}{}", dir_str, strength_str).into();
+    if *gusts > 0 {
+        let gust_str = format!("{:02}", gusts)
+            .to_string()
+            .color(if gusts - strength > 5 {
+                Color::BrightRed
+            } else {
+                Color::Green
+            });
         output = format!("{}G{}", output, gust_str).into();
     }
     output = format!("{}KT", output).into();
@@ -449,6 +453,7 @@ mod tests {
             altitude: AltitudeUnit::Ft,
             wind_speed: SpeedUnit::Kt,
             temperature: TemperatureUnit::C,
+            distance: DistanceUnit::M,
         };
         let actual = get_qnh(&json, &units);
         println!("{:?}", actual);

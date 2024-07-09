@@ -1,6 +1,8 @@
 use super::MetarField;
+use anyhow::{anyhow, Error};
+use regex::Regex;
 use serde_json::Value;
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -67,6 +69,38 @@ impl WxCode {
     }
 }
 
+impl FromStr for WxCode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "ra" => Ok(Self::Ra),
+            "dz" => Ok(Self::Dz),
+            "gr" => Ok(Self::Gr),
+            "gs" => Ok(Self::Gs),
+            "ic" => Ok(Self::Ic),
+            "pl" => Ok(Self::Pl),
+            "sg" => Ok(Self::Sg),
+            "sn" => Ok(Self::Sn),
+            "up" => Ok(Self::Up),
+            "br" => Ok(Self::Br),
+            "du" => Ok(Self::Du),
+            "fg" => Ok(Self::Fg),
+            "fu" => Ok(Self::Fu),
+            "hz" => Ok(Self::Hz),
+            "py" => Ok(Self::Py),
+            "sa" => Ok(Self::Sa),
+            "va" => Ok(Self::Va),
+            "ds" => Ok(Self::Ds),
+            "fc" => Ok(Self::Fc),
+            "po" => Ok(Self::Po),
+            "sq" => Ok(Self::Sq),
+            "ss" => Ok(Self::Ss),
+            _ => Err(anyhow!("Invalid weather code {}.", s)),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug)]
 /// Used to specify a weather phenomenon's intensity.
 pub enum WxCodeIntensity {
@@ -100,6 +134,19 @@ impl WxCodeProximity {
     }
 }
 
+impl FromStr for WxCodeProximity {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "" => Ok(Self::OnStation),
+            "vc" => Ok(Self::Vicinity),
+            "dsnt" => Ok(Self::Distant),
+            _ => Err(anyhow!("Invalid weather proximity code {}.", s)),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, EnumIter)]
 /// Used to further specify a weather phenomenon.
 pub enum WxCodeDescription {
@@ -128,12 +175,34 @@ impl WxCodeDescription {
         let mut res: String = String::from("");
         for val in Self::iter() {
             res.push_str(val.to_string().as_str());
-            res.push('|');
+
+            if !val.to_string().is_empty() {
+                res.push('|');
+            }
         }
         if res.ends_with("|") {
             res.truncate(res.len() - 1);
         }
         res
+    }
+}
+
+impl FromStr for WxCodeDescription {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "" => Ok(Self::None),
+            "ts" => Ok(Self::Ts),
+            "bc" => Ok(Self::Bc),
+            "bl" => Ok(Self::Bl),
+            "dr" => Ok(Self::Dr),
+            "fz" => Ok(Self::Fz),
+            "mi" => Ok(Self::Mi),
+            "pr" => Ok(Self::Pr),
+            "sh" => Ok(Self::Sh),
+            _ => Err(anyhow!("Invalid weather code descriptor {}.", s)),
+        }
     }
 }
 
@@ -169,7 +238,20 @@ impl Display for WxCode {
 
 impl WxCodeIntensity {
     fn get_regex() -> String {
-        String::from("+|-")
+        String::from(r"[+]|-")
+    }
+}
+
+impl FromStr for WxCodeIntensity {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "" => Ok(Self::Moderate),
+            "+" => Ok(Self::Heavy),
+            "-" => Ok(Self::Light),
+            _ => Err(anyhow!("Invalid proximity code {}.", s)),
+        }
     }
 }
 
@@ -213,30 +295,22 @@ impl Display for WxCodeDescription {
 }
 
 pub(crate) fn wxcode_from_str(repr: &str) -> Option<MetarField> {
-    // TODO
-
-    let _regex_pattern = format!(
-        "(?<intensity>{})?(?<descr>{})?(?<code>{})+(?<location>{})?",
+    let regex_pattern = format!(
+        r"(?<intensity>({})?)(?<descr>({})?)(?<code>{})(?<location>({})?)",
         WxCodeIntensity::get_regex(),
         WxCodeDescription::get_regex(),
         WxCode::get_regex(),
         WxCodeProximity::get_regex()
     );
+    let regex = Regex::new(&regex_pattern)
+        .expect("Creating RegEx pattern failed. This is likely a software bug, please report it.");
+    let matches = regex.captures(repr)?;
+    let code: WxCode = matches["code"].parse().ok()?;
+    let intensity: WxCodeIntensity = matches["intensity"].parse().ok()?;
+    let descriptor: WxCodeDescription = matches["descr"].parse().ok()?;
+    let proximity: WxCodeProximity = matches["location"].parse().ok()?;
 
-    let intensity = if repr.starts_with("-") {
-        WxCodeIntensity::Light
-    } else if repr.starts_with("+") {
-        WxCodeIntensity::Heavy
-    } else {
-        WxCodeIntensity::Moderate
-    };
-
-    Some(MetarField::WxCode(
-        WxCode::Ra,
-        intensity,
-        WxCodeProximity::OnStation,
-        WxCodeDescription::None,
-    ))
+    Some(MetarField::WxCode(code, intensity, proximity, descriptor))
 }
 
 pub fn get_wxcodes(json: &Value) -> Vec<MetarField> {

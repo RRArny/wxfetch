@@ -6,6 +6,7 @@ pub struct Units {
     pub altitude: AltitudeUnit,
     pub wind_speed: SpeedUnit,
     pub temperature: TemperatureUnit,
+    pub distance: DistanceUnit,
 }
 
 impl Units {
@@ -32,11 +33,17 @@ impl Units {
                     .and_then(|v| v.as_str())
                     .map(TemperatureUnit::from)
                     .unwrap_or_default();
+                let distance: DistanceUnit = units_json
+                    .get("visibility")
+                    .and_then(|d| d.as_str())
+                    .map(DistanceUnit::from)
+                    .unwrap_or_default();
                 Units {
                     pressure,
                     altitude,
                     wind_speed,
                     temperature,
+                    distance,
                 }
             }
             None => Self::default(),
@@ -114,6 +121,27 @@ impl From<&str> for TemperatureUnit {
     }
 }
 
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy)]
+pub enum DistanceUnit {
+    #[default]
+    M,
+    Nm,
+    Mi,
+    Km,
+}
+
+impl From<&str> for DistanceUnit {
+    fn from(value: &str) -> Self {
+        match value.to_lowercase().as_str() {
+            "m" => Self::M,
+            "nm" => Self::Nm,
+            "mi" => Self::Mi,
+            "km" => Self::Km,
+            _ => Self::M,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -128,6 +156,7 @@ mod tests {
             altitude: AltitudeUnit::Ft,
             wind_speed: SpeedUnit::Kt,
             temperature: TemperatureUnit::C,
+            distance: DistanceUnit::M,
         };
         let actual = Units::from_json(&json);
         assert_eq!(actual, expected);
@@ -135,12 +164,13 @@ mod tests {
 
     #[test]
     fn test_units_from_json_us_units() {
-        let json: Value = Value::from_str("{\"units\":{\"altimeter\": \"inHg\",\"altitude\":\"ft\",\"temperature\":\"F\",\"wind_speed\": \"mph\"}}").unwrap();
+        let json: Value = Value::from_str("{\"units\":{\"altimeter\": \"inHg\",\"altitude\":\"ft\",\"temperature\":\"F\",\"wind_speed\": \"mph\", \"visibility\":\"mi\"}}").unwrap();
         let expected: Units = Units {
             pressure: PressureUnit::Inhg,
             altitude: AltitudeUnit::Ft,
             wind_speed: SpeedUnit::Mph,
             temperature: TemperatureUnit::F,
+            distance: DistanceUnit::Mi,
         };
         let actual = Units::from_json(&json);
         assert_eq!(actual, expected);

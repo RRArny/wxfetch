@@ -1,6 +1,8 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use super::MetarField;
+use anyhow::anyhow;
+use regex::Regex;
 use serde_json::Value;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -20,11 +22,9 @@ pub enum Clouds {
     Ovc,
 }
 
+/// Parses a METAR in JSON form and returns a Vec of MetarField::Clouds describing the cloud information contained.
 pub fn get_clouds(json: &Value) -> Vec<MetarField> {
     let mut result: Vec<MetarField> = Vec::new();
-
-    // json.get("clouds").and_then(|x| x.as_array()).and_then(|x| x.into_iter().map())
-
     if let Some(wxcodes) = json.get("clouds").and_then(|x| x.as_array()) {
         for code in wxcodes {
             if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
@@ -37,13 +37,19 @@ pub fn get_clouds(json: &Value) -> Vec<MetarField> {
     result
 }
 
-fn clouds_from_str(_repr: &str) -> Option<MetarField> {
-    let _regex = format!("(?<obscuration>{})(?<level>\\d[2,3])", Clouds::get_regex());
-    // TODO
-    Some(MetarField::Clouds(Clouds::Skc, 0))
+/// From a METAR compliant cloud code representation string (&str) parses a MetarField::Cloud.
+fn clouds_from_str(repr: &str) -> Option<MetarField> {
+    let regex = format!("(?<obscuration>{})(?<level>\\d*)", Clouds::get_regex());
+    let regex = Regex::new(&regex)
+        .expect("Creating RegEx pattern failed. This is likely a software bug, please report it.");
+    let matches = regex.captures(repr)?;
+    let obscuration: Clouds = matches["obscuration"].parse().ok()?;
+    let level: i64 = matches["level"].parse().unwrap_or(0);
+    Some(MetarField::Clouds(obscuration, level))
 }
 
 impl Clouds {
+    /// Generates a regex that will match on textual representation of any of the valid obscuration levels.
     fn get_regex() -> String {
         let mut res: String = String::new();
         for val in Self::iter() {
@@ -54,6 +60,21 @@ impl Clouds {
             res.truncate(res.len() - 1);
         }
         res
+    }
+}
+
+impl FromStr for Clouds {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "skc" => Ok(Self::Skc),
+            "few" => Ok(Self::Few),
+            "sct" => Ok(Self::Sct),
+            "brk" => Ok(Self::Brk),
+            "ovc" => Ok(Self::Ovc),
+            _ => Err(anyhow!("Invalid cloud obscuration {}.", s)),
+        }
     }
 }
 
