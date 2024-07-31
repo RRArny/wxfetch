@@ -20,8 +20,5 @@ For wxfetch to work you will need a free account on https://avwx.rest/. Once you
 
 ## Todos
 
-- [ ] clouds_from_str() in metar/clouds.rs
-  - Using Regex-crate
-- [ ] wxcode_from_str() in metar/wxcodes.rs
-  - Using Regex-crate
-  - Might need to change return type and MetarField::WxCode to accomodate multiple precipitation specifiers at the same time
+- [ ] colourise_wx_code()
+- [ ] Personal wx minima
