@@ -57,12 +57,12 @@ pub enum WxCode {
 
 impl WxCode {
     fn get_regex() -> String {
-        let mut res: String = String::from("");
+        let mut res: String = String::new();
         for val in Self::iter() {
             res.push_str(val.to_string().as_str());
             res.push('|');
         }
-        if res.ends_with("|") {
+        if res.ends_with('|') {
             res.truncate(res.len() - 1);
         }
         res
@@ -122,12 +122,12 @@ pub enum WxCodeProximity {
 
 impl WxCodeProximity {
     fn get_regex() -> String {
-        let mut res: String = String::from("");
+        let mut res: String = String::new();
         for val in Self::iter() {
             res.push_str(val.to_string().as_str());
             res.push('|');
         }
-        if res.ends_with("|") {
+        if res.ends_with('|') {
             res.truncate(res.len() - 1);
         }
         res
@@ -172,7 +172,7 @@ pub enum WxCodeDescription {
 
 impl WxCodeDescription {
     fn get_regex() -> String {
-        let mut res: String = String::from("");
+        let mut res: String = String::new();
         for val in Self::iter() {
             res.push_str(val.to_string().as_str());
 
@@ -180,7 +180,7 @@ impl WxCodeDescription {
                 res.push('|');
             }
         }
-        if res.ends_with("|") {
+        if res.ends_with('|') {
             res.truncate(res.len() - 1);
         }
         res
@@ -232,7 +232,7 @@ impl Display for WxCode {
             WxCode::Sq => "SQ",
             WxCode::Ss => "SS",
         };
-        write!(f, "{}", str_repr)
+        write!(f, "{str_repr}")
     }
 }
 
@@ -250,7 +250,7 @@ impl FromStr for WxCodeIntensity {
             "" => Ok(Self::Moderate),
             "+" => Ok(Self::Heavy),
             "-" => Ok(Self::Light),
-            _ => Err(anyhow!("Invalid proximity code {}.", s)),
+            _ => Err(anyhow!("Invalid proximity code {s}.")),
         }
     }
 }
@@ -262,7 +262,7 @@ impl Display for WxCodeIntensity {
             WxCodeIntensity::Light => "-",
             WxCodeIntensity::Heavy => "+",
         };
-        write!(f, "{}", str_repr)
+        write!(f, "{str_repr}")
     }
 }
 
@@ -273,7 +273,7 @@ impl Display for WxCodeProximity {
             WxCodeProximity::Vicinity => "VC",
             WxCodeProximity::Distant => "DSNT",
         };
-        write!(f, "{}", str_repr)
+        write!(f, "{str_repr}")
     }
 }
 
@@ -290,7 +290,7 @@ impl Display for WxCodeDescription {
             WxCodeDescription::Pr => "PR",
             WxCodeDescription::Sh => "SH",
         };
-        write!(f, "{}", str_repr)
+        write!(f, "{str_repr}")
     }
 }
 
@@ -313,7 +313,7 @@ pub(crate) fn wxcode_from_str(repr: &str) -> Option<MetarField> {
     Some(MetarField::WxCode(code, intensity, proximity, descriptor))
 }
 
-pub fn get_wxcodes(json: &Value) -> Vec<MetarField> {
+pub fn get_wxcodes_from_json(json: &Value) -> Vec<MetarField> {
     let mut result: Vec<MetarField> = Vec::new();
     if let Some(wxcodes) = json.get("wx_codes").and_then(|x| x.as_array()) {
         for code in wxcodes {
@@ -332,7 +332,7 @@ mod tests {
     use serde_json::Value;
     use std::str::FromStr;
 
-    use super::{get_wxcodes, WxCode, WxCodeIntensity};
+    use super::{get_wxcodes_from_json, WxCode, WxCodeIntensity};
     use crate::metar::{wxcode_from_str, MetarField, WxCodeProximity};
 
     #[test]
@@ -345,14 +345,14 @@ mod tests {
     #[test]
     fn test_get_wxcodes_empty() {
         let json: Value = Value::from_str("{\"wx_codes\":[]}").unwrap();
-        let actual = get_wxcodes(&json);
+        let actual = get_wxcodes_from_json(&json);
         assert!(actual.is_empty());
     }
 
     #[test]
     fn test_get_wxcodes_no_field() {
         let json: Value = Value::from_str("{}").unwrap();
-        let actual = get_wxcodes(&json);
+        let actual = get_wxcodes_from_json(&json);
         assert!(actual.is_empty());
     }
 
@@ -365,7 +365,7 @@ mod tests {
             crate::metar::WxCodeDescription::None,
         )];
         let json: Value = Value::from_str("{\"wx_codes\":[{\"repr\":\"-RA\"}]}").unwrap();
-        let actual = get_wxcodes(&json);
+        let actual = get_wxcodes_from_json(&json);
         assert_eq!(expected, actual);
     }
 

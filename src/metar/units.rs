@@ -137,7 +137,7 @@ impl From<&str> for DistanceUnit {
             "nm" => Self::Nm,
             "mi" => Self::Mi,
             "km" => Self::Km,
-            _ => Self::M,
+            _ => Self::default(),
         }
     }
 }

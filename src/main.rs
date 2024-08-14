@@ -58,18 +58,17 @@ async fn get_config(secrets: &Secrets) -> Config {
             return Config {
                 position: Position::Airfield(icao),
             };
-        } else {
-            println!("Invalid airfield {}. Defaulting to geoip...", icao);
         }
+        println!("Invalid airfield {}. Defaulting to geoip...", icao);
     } else if let Some(lat) = args.latitude {
         if let Some(long) = args.longitude {
             return Config {
                 position: Position::LatLong(LatLong(lat, long)),
             };
-        } else {
-            println!("Please provide both Latitude and Longitude. Defaulting to geoip...");
         }
+        println!("Please provide both Latitude and Longitude. Defaulting to geoip...");
     }
+
     Config {
         position: Position::GeoIP,
     }

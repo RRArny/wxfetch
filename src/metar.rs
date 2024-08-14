@@ -1,4 +1,5 @@
 use crate::{Config, Position};
+use chrono::format;
 use chrono::DateTime;
 use chrono::FixedOffset;
 use chrono::TimeDelta;
@@ -11,9 +12,11 @@ use std::ops::Sub;
 mod clouds;
 mod units;
 mod wxcodes;
-use crate::metar::clouds::*;
-use crate::metar::units::*;
-use crate::metar::wxcodes::*;
+use crate::metar::clouds::{get_clouds_from_json, Clouds};
+use crate::metar::units::{PressureUnit, SpeedUnit, TemperatureUnit, Units};
+use crate::metar::wxcodes::{
+    get_wxcodes_from_json, WxCode, WxCodeDescription, WxCodeIntensity, WxCodeProximity,
+};
 
 /// Represents a METAR report.
 pub struct Metar {
@@ -81,19 +84,35 @@ impl MetarField {
                 colourise_wx_code(code, intensity, proximity, descriptor)
             }
             MetarField::Remarks(str) => str.black().on_white(),
-            MetarField::Clouds(_, _) => todo!(),
+            MetarField::Clouds(cloud, alt) => colourise_clouds(cloud, alt),
         }
     }
 }
 
+fn colourise_clouds(cloud: &Clouds, alt: &i64) -> ColoredString {
+    let res: ColoredString = format!("{}", cloud).color(match cloud {
+        Clouds::Ovc => Color::Red,
+        Clouds::Brk => Color::Yellow,
+        _ => Color::Green,
+    });
+    let altstr: ColoredString = format!("{}", alt).color(if *alt <= 10 {
+        Color::Red
+    } else if *alt <= 30 {
+        Color::Yellow
+    } else {
+        Color::Green
+    });
+    format!("{}{}", res, altstr).into()
+}
+
 fn colourise_wx_code(
-    _code: &WxCode,
-    _intensity: &WxCodeIntensity,
-    _proximity: &WxCodeProximity,
-    _descriptor: &WxCodeDescription,
+    code: &WxCode,
+    intensity: &WxCodeIntensity,
+    proximity: &WxCodeProximity,
+    descriptor: &WxCodeDescription,
 ) -> ColoredString {
-    // todo!()
-    format!("{}{}{}{}", _intensity, _descriptor, _code, _proximity).magenta()
+    // TODO
+    format!("{intensity}{descriptor}{code}{proximity}").magenta()
 }
 
 fn colourise_qnh(qnh: &i64, unit: &PressureUnit) -> ColoredString {
@@ -223,9 +242,9 @@ impl Metar {
             fields.push(qnh);
         }
 
-        fields.append(&mut get_wxcodes(&json));
+        fields.append(&mut get_wxcodes_from_json(&json));
 
-        fields.append(&mut get_clouds(&json));
+        fields.append(&mut get_clouds_from_json(&json));
 
         if let Some(rmks) = get_remarks(&json) {
             fields.push(rmks);

@@ -22,8 +22,8 @@ pub enum Clouds {
     Ovc,
 }
 
-/// Parses a METAR in JSON form and returns a Vec of MetarField::Clouds describing the cloud information contained.
-pub fn get_clouds(json: &Value) -> Vec<MetarField> {
+/// Parses a METAR in JSON form and returns a `Vec` of `MetarField::Clouds` describing the cloud information contained.
+pub fn get_clouds_from_json(json: &Value) -> Vec<MetarField> {
     let mut result: Vec<MetarField> = Vec::new();
     if let Some(wxcodes) = json.get("clouds").and_then(|x| x.as_array()) {
         for code in wxcodes {
@@ -37,7 +37,7 @@ pub fn get_clouds(json: &Value) -> Vec<MetarField> {
     result
 }
 
-/// From a METAR compliant cloud code representation string (&str) parses a MetarField::Cloud.
+/// From a METAR compliant cloud code representation string (`&str`) parses a `MetarField::Cloud`.
 fn clouds_from_str(repr: &str) -> Option<MetarField> {
     let regex = format!("(?<obscuration>{})(?<level>\\d*)", Clouds::get_regex());
     let regex = Regex::new(&regex)
@@ -56,7 +56,7 @@ impl Clouds {
             res.push_str(val.to_string().as_str());
             res.push('|');
         }
-        if res.ends_with("|") {
+        if res.ends_with('|') {
             res.truncate(res.len() - 1);
         }
         res
@@ -73,7 +73,7 @@ impl FromStr for Clouds {
             "sct" => Ok(Self::Sct),
             "brk" => Ok(Self::Brk),
             "ovc" => Ok(Self::Ovc),
-            _ => Err(anyhow!("Invalid cloud obscuration {}.", s)),
+            _ => Err(anyhow!("Invalid cloud obscuration {s}.")),
         }
     }
 }
@@ -87,7 +87,7 @@ impl Display for Clouds {
             Clouds::Brk => "BRK",
             Clouds::Ovc => "OVC",
         };
-        write!(f, "{}", str_repr)
+        write!(f, "{str_repr}")
     }
 }
 
@@ -99,7 +99,7 @@ mod tests {
 
     use crate::metar::MetarField;
 
-    use super::{clouds_from_str, get_clouds, Clouds};
+    use super::{clouds_from_str, get_clouds_from_json, Clouds};
 
     #[test]
     fn test_get_regex() {
@@ -133,7 +133,7 @@ mod tests {
             MetarField::Clouds(Clouds::Brk, 100),
             MetarField::Clouds(Clouds::Ovc, 200),
         ];
-        let actual = get_clouds(&json);
+        let actual = get_clouds_from_json(&json);
         assert_eq!(expected, actual);
     }
 }

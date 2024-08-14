@@ -22,3 +22,4 @@ For wxfetch to work you will need a free account on https://avwx.rest/. Once you
 
 - [ ] colourise_wx_code()
 - [ ] Personal wx minima
+
