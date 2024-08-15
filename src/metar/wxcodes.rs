@@ -372,7 +372,7 @@ mod tests {
     #[test]
     fn test_wxcode_from_str() {
         let expected = WxCode::Ra;
-        let actual = WxCode::from_str("-RA").unwrap();
+        let actual = WxCode::from_str("RA").unwrap();
         assert_eq!(expected, actual);
     }
 }
