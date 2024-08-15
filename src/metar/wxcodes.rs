@@ -333,7 +333,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::{get_wxcodes_from_json, WxCode, WxCodeIntensity};
-    use crate::metar::{wxcode_from_str, MetarField, WxCodeProximity};
+    use crate::metar::{MetarField, WxCodeProximity};
 
     #[test]
     fn test_get_regex() {
@@ -371,13 +371,8 @@ mod tests {
 
     #[test]
     fn test_wxcode_from_str() {
-        let expected: MetarField = MetarField::WxCode(
-            WxCode::Ra,
-            WxCodeIntensity::Light,
-            WxCodeProximity::OnStation,
-            crate::metar::WxCodeDescription::None,
-        );
-        let actual = wxcode_from_str("-RA");
-        assert_eq!(Some(expected), actual);
+        let expected = WxCode::Ra;
+        let actual = WxCode::from_str("-RA").unwrap();
+        assert_eq!(expected, actual);
     }
 }

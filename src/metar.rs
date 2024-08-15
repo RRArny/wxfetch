@@ -1,5 +1,4 @@
 use crate::{Config, Position};
-use chrono::format;
 use chrono::DateTime;
 use chrono::FixedOffset;
 use chrono::TimeDelta;
@@ -353,6 +352,8 @@ fn is_exact_match(station: &str, config: &Config) -> bool {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+
+    use units::{AltitudeUnit, DistanceUnit};
 
     use super::*;
 
