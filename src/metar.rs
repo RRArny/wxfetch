@@ -110,8 +110,30 @@ fn colourise_wx_code(
     proximity: &WxCodeProximity,
     descriptor: &WxCodeDescription,
 ) -> ColoredString {
-    // TODO
-    format!("{intensity}{descriptor}{code}{proximity}").magenta()
+    let codestr = format!("{code}").color(match code {
+        WxCode::Ra => Color::BrightYellow,
+        WxCode::Gr => Color::Red,
+        WxCode::Gs => Color::Yellow,
+        WxCode::Sn => Color::Red,
+        WxCode::Up => Color::Red,
+        WxCode::Po => Color::BrightRed,
+        _ => Color::White,
+    });
+
+    let intensitystr = format!("{intensity}").color(match intensity {
+        WxCodeIntensity::Light => Color::BrightGreen,
+        WxCodeIntensity::Heavy => Color::BrightRed,
+        _ => Color::White,
+    });
+
+    let descrstr = format!("{descriptor}").color(match descriptor {
+        WxCodeDescription::Ts => Color::Red,
+        WxCodeDescription::Fz => Color::BrightBlue,
+        WxCodeDescription::Sh => Color::Yellow,
+        _ => Color::White,
+    });
+
+    format!("{intensitystr}{descrstr}{codestr}{proximity}").magenta()
 }
 
 fn colourise_qnh(qnh: &i64, unit: &PressureUnit) -> ColoredString {
