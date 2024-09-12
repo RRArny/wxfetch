@@ -378,7 +378,7 @@ mod tests {
         let config = Config {
             position: Position::Airfield("EDRK".to_string()),
         };
-        let metar = Metar::from_json(json, &config);
+        let metar = Metar::from_json(&json, &config);
         assert!(metar.is_some_and(|m| m.icao_code == "EDRK"));
     }
 
@@ -389,7 +389,7 @@ mod tests {
             position: Position::Airfield("EDRK".to_string()),
         };
         let expected = DateTime::parse_from_rfc3339("2024-06-21T05:50:00Z").unwrap();
-        let metar = Metar::from_json(json, &config);
+        let metar = Metar::from_json(&json, &config);
         assert!(metar.is_some_and(|m| m.fields.contains(&MetarField::TimeStamp(expected))));
     }
 
@@ -427,19 +427,19 @@ mod tests {
 
     #[test]
     fn test_colourise_visibility_good() {
-        let vis_str: ColoredString = colourise_visibility(&9999);
+        let vis_str: ColoredString = colourise_visibility(9999);
         assert_eq!(vis_str.fgcolor(), Some(Color::Green));
     }
 
     #[test]
     fn test_colourise_visibility_medium() {
-        let vis_str: ColoredString = colourise_visibility(&2000);
+        let vis_str: ColoredString = colourise_visibility(2000);
         assert_eq!(vis_str.fgcolor(), Some(Color::Yellow));
     }
 
     #[test]
     fn test_colourise_visibility_bad() {
-        let vis_str: ColoredString = colourise_visibility(&1000);
+        let vis_str: ColoredString = colourise_visibility(1000);
         assert_eq!(vis_str.fgcolor(), Some(Color::Red));
     }
 
@@ -452,7 +452,7 @@ mod tests {
             gusts: 15,
             unit: SpeedUnit::Kt,
         };
-        let actual = get_winds(&json, &Units::default());
+        let actual = get_winds(&json, Units::default());
         assert!(actual.is_some_and(|w| w == expected));
     }
 
@@ -467,7 +467,7 @@ mod tests {
             gusts: 0,
             unit: SpeedUnit::Kt,
         };
-        let actual = get_winds(&json, &Units::default());
+        let actual = get_winds(&json, Units::default());
         assert!(actual.is_some_and(|w| w == expected));
     }
 
@@ -475,7 +475,7 @@ mod tests {
     fn test_get_qnh() {
         let json: Value = Value::from_str("{\"altimeter\":{\"value\": 1013}}").unwrap();
         let expected = MetarField::Qnh(1013, PressureUnit::Hpa);
-        let actual = get_qnh(&json, &Units::default());
+        let actual = get_qnh(&json, Units::default());
         assert!(actual.is_some_and(|q| q == expected));
     }
 
@@ -490,7 +490,7 @@ mod tests {
             temperature: TemperatureUnit::C,
             distance: DistanceUnit::M,
         };
-        let actual = get_qnh(&json, &units);
+        let actual = get_qnh(&json, units);
         println!("{:?}", actual);
         assert!(actual.is_some_and(|q| q == expected));
     }
@@ -513,7 +513,7 @@ mod tests {
             dewpoint: 9,
             unit: TemperatureUnit::C,
         };
-        let actual = get_temp(&json, &Units::default());
+        let actual = get_temp(&json, Units::default());
         assert!(actual.is_some_and(|t| t == expected));
     }
 
@@ -534,7 +534,7 @@ mod tests {
     fn test_get_visibility() {
         let json: Value = Value::from_str("{\"visibility\":{\"value\":9999}}").unwrap();
         let expected: MetarField = MetarField::Visibility(9999);
-        let actual = get_visibility(&json, &Units::default());
+        let actual = get_visibility(&json, Units::default());
         assert!(actual.is_some_and(|v| v == expected));
     }
 }
