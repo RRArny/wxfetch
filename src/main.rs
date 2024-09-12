@@ -59,7 +59,7 @@ async fn get_config(secrets: &Secrets) -> Config {
                 position: Position::Airfield(icao),
             };
         }
-        println!("Invalid airfield {}. Defaulting to geoip...", icao);
+        println!("Invalid airfield {icao}. Defaulting to geoip...");
     } else if let Some(lat) = args.latitude {
         if let Some(long) = args.longitude {
             return Config {
@@ -78,7 +78,7 @@ async fn get_weather(config: &Config, secrets: &Secrets) -> ColoredString {
     let json = request_wx(config, secrets)
         .await
         .expect("Weather request failed.");
-    let metar = Metar::from_json(json, config).expect("Invalid weather data received...");
+    let metar = Metar::from_json(&json, config).expect("Invalid weather data received...");
     metar.colorise()
 }
 
@@ -88,5 +88,5 @@ async fn main() {
     let config = get_config(&secrets).await;
     let wx_string = get_weather(&config, &secrets).await;
 
-    println!("{}", wx_string);
+    println!("{wx_string}");
 }

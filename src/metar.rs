@@ -64,44 +64,46 @@ pub enum MetarField {
 impl MetarField {
     pub fn colourise(&self) -> ColoredString {
         match self {
-            MetarField::Visibility(vis) => colourise_visibility(vis),
+            MetarField::Visibility(vis) => colourise_visibility(*vis),
             MetarField::TimeStamp(datetime) => colourize_timestamp(datetime),
             MetarField::Wind {
                 direction,
                 strength,
                 gusts,
                 unit,
-            } => colourise_wind(direction, strength, gusts, unit),
-            MetarField::WindVariability { low_dir, hi_dir } => colourise_wind_var(low_dir, hi_dir),
+            } => colourise_wind(*direction, *strength, *gusts, *unit),
+            MetarField::WindVariability { low_dir, hi_dir } => {
+                colourise_wind_var(*low_dir, *hi_dir)
+            }
             MetarField::Temperature {
                 temp,
                 dewpoint,
                 unit,
-            } => colourise_temperature(temp, dewpoint, unit),
-            MetarField::Qnh(qnh, unit) => colourise_qnh(qnh, unit),
+            } => colourise_temperature(*temp, *dewpoint, *unit),
+            MetarField::Qnh(qnh, unit) => colourise_qnh(*qnh, *unit),
             MetarField::WxCode(code, intensity, proximity, descriptor) => {
                 colourise_wx_code(code, intensity, proximity, descriptor)
             }
             MetarField::Remarks(str) => str.black().on_white(),
-            MetarField::Clouds(cloud, alt) => colourise_clouds(cloud, alt),
+            MetarField::Clouds(cloud, alt) => colourise_clouds(cloud, *alt),
         }
     }
 }
 
-fn colourise_clouds(cloud: &Clouds, alt: &i64) -> ColoredString {
-    let res: ColoredString = format!("{}", cloud).color(match cloud {
+fn colourise_clouds(cloud: &Clouds, alt: i64) -> ColoredString {
+    let res: ColoredString = format!("{cloud}").color(match cloud {
         Clouds::Ovc => Color::Red,
         Clouds::Brk => Color::Yellow,
         _ => Color::Green,
     });
-    let altstr: ColoredString = format!("{}", alt).color(if *alt <= 10 {
+    let altstr: ColoredString = format!("{alt}").color(if alt <= 10 {
         Color::Red
-    } else if *alt <= 30 {
+    } else if alt <= 30 {
         Color::Yellow
     } else {
         Color::Green
     });
-    format!("{}{}", res, altstr).into()
+    format!("{res}{altstr}").into()
 }
 
 fn colourise_wx_code(
@@ -112,10 +114,8 @@ fn colourise_wx_code(
 ) -> ColoredString {
     let codestr = format!("{code}").color(match code {
         WxCode::Ra => Color::BrightYellow,
-        WxCode::Gr => Color::Red,
+        WxCode::Gr | WxCode::Sn | WxCode::Up => Color::Red,
         WxCode::Gs => Color::Yellow,
-        WxCode::Sn => Color::Red,
-        WxCode::Up => Color::Red,
         WxCode::Po => Color::BrightRed,
         _ => Color::White,
     });
@@ -136,14 +136,14 @@ fn colourise_wx_code(
     format!("{intensitystr}{descrstr}{codestr}{proximity}").magenta()
 }
 
-fn colourise_qnh(qnh: &i64, unit: &PressureUnit) -> ColoredString {
+fn colourise_qnh(qnh: i64, unit: PressureUnit) -> ColoredString {
     match unit {
-        PressureUnit::Hpa => format!("Q{}", qnh).color(if *qnh >= 1013 {
+        PressureUnit::Hpa => format!("Q{qnh}").color(if qnh >= 1013 {
             Color::Green
         } else {
             Color::Yellow
         }),
-        PressureUnit::Inhg => format!("A{}", qnh / 100).color(if *qnh >= 2992 {
+        PressureUnit::Inhg => format!("A{}", qnh / 100).color(if qnh >= 2992 {
             Color::Green
         } else {
             Color::Yellow
@@ -151,54 +151,49 @@ fn colourise_qnh(qnh: &i64, unit: &PressureUnit) -> ColoredString {
     }
 }
 
-fn colourise_temperature(temp: &i64, dewpoint: &i64, _unit: &TemperatureUnit) -> ColoredString {
-    let temp_str = temp.to_string().color(if *temp > 0 {
+fn colourise_temperature(temp: i64, dewpoint: i64, _unit: TemperatureUnit) -> ColoredString {
+    let temp_str = temp.to_string().color(if temp > 0 {
         Color::BrightGreen
     } else {
         Color::BrightRed
     });
-    let dew_str = dewpoint.to_string().color(if *temp - *dewpoint > 3 {
+    let dew_str = dewpoint.to_string().color(if temp - dewpoint > 3 {
         Color::Green
     } else {
         Color::Red
     });
-    format!("{}/{}", temp_str, dew_str).into()
+    format!("{temp_str}/{dew_str}").into()
 }
 
-fn colourise_wind_var(low_dir: &i64, hi_dir: &i64) -> ColoredString {
-    format!("{}V{}", low_dir, hi_dir).color(if hi_dir - low_dir < 45 {
+fn colourise_wind_var(low_dir: i64, hi_dir: i64) -> ColoredString {
+    format!("{low_dir}V{hi_dir}").color(if hi_dir - low_dir < 45 {
         Color::Green
     } else {
         Color::Yellow
     })
 }
 
-fn colourise_wind(
-    direction: &i64,
-    strength: &i64,
-    gusts: &i64,
-    _unit: &SpeedUnit,
-) -> ColoredString {
-    let dir_str = format!("{:03}", direction).to_string();
-    let strength_str = format!("{:02}", strength)
+fn colourise_wind(direction: i64, strength: i64, gusts: i64, _unit: SpeedUnit) -> ColoredString {
+    let dir_str = format!("{direction:03}").to_string();
+    let strength_str = format!("{strength:02}")
         .to_string()
-        .color(if *strength > 15 {
+        .color(if strength > 15 {
             Color::Red
         } else {
             Color::Green
         });
-    let mut output: ColoredString = format!("{}{}", dir_str, strength_str).into();
-    if *gusts > 0 {
-        let gust_str = format!("{:02}", gusts)
+    let mut output: ColoredString = format!("{dir_str}{strength_str}").into();
+    if gusts > 0 {
+        let gust_str = format!("{gusts:02}")
             .to_string()
             .color(if gusts - strength > 5 {
                 Color::BrightRed
             } else {
                 Color::Green
             });
-        output = format!("{}G{}", output, gust_str).into();
+        output = format!("{output}G{gust_str}").into();
     }
-    output = format!("{}KT", output).into();
+    output = format!("{output}KT").into();
     output
 }
 
@@ -216,10 +211,10 @@ fn colourize_timestamp(datetime: &DateTime<FixedOffset>) -> ColoredString {
     })
 }
 
-fn colourise_visibility(vis: &i64) -> ColoredString {
-    if *vis >= 6000 {
+fn colourise_visibility(vis: i64) -> ColoredString {
+    if vis >= 6000 {
         vis.to_string().green()
-    } else if *vis > 1500 {
+    } else if vis > 1500 {
         vis.to_string().yellow()
     } else {
         vis.to_string().red()
@@ -227,47 +222,45 @@ fn colourise_visibility(vis: &i64) -> ColoredString {
 }
 
 impl Metar {
-    pub fn from_json(json: Value, config: &Config) -> Option<Self> {
-        // println!("{:?}", json);
-
+    pub fn from_json(json: &Value, config: &Config) -> Option<Self> {
         let mut station = String::new();
         if let Some(icao) = json.get("station") {
             station = icao.as_str()?.to_string();
         }
 
-        let units: Units = Units::from_json(&json);
+        let units: Units = Units::from_json(json);
 
         let mut fields: Vec<MetarField> = Vec::new();
 
-        if let Some(time) = get_timestamp(&json) {
+        if let Some(time) = get_timestamp(json) {
             fields.push(time);
         }
 
-        if let Some(wind) = get_winds(&json, &units) {
+        if let Some(wind) = get_winds(json, units) {
             fields.push(wind);
         }
 
-        if let Some(wind_var) = get_wind_var(&json) {
+        if let Some(wind_var) = get_wind_var(json) {
             fields.push(wind_var);
         }
 
-        if let Some(vis) = get_visibility(&json, &units) {
+        if let Some(vis) = get_visibility(json, units) {
             fields.push(vis);
         }
 
-        if let Some(temp) = get_temp(&json, &units) {
+        if let Some(temp) = get_temp(json, units) {
             fields.push(temp);
         }
 
-        if let Some(qnh) = get_qnh(&json, &units) {
+        if let Some(qnh) = get_qnh(json, units) {
             fields.push(qnh);
         }
 
-        fields.append(&mut get_wxcodes_from_json(&json));
+        fields.append(&mut get_wxcodes_from_json(json));
 
-        fields.append(&mut get_clouds_from_json(&json));
+        fields.append(&mut get_clouds_from_json(json));
 
-        if let Some(rmks) = get_remarks(&json) {
+        if let Some(rmks) = get_remarks(json) {
             fields.push(rmks);
         }
 
@@ -306,7 +299,7 @@ fn get_timestamp(json: &Value) -> Option<MetarField> {
     Some(MetarField::TimeStamp(datetime))
 }
 
-fn get_qnh(json: &Value, units: &Units) -> Option<MetarField> {
+fn get_qnh(json: &Value, units: Units) -> Option<MetarField> {
     let qnh_val: &Value = json.get("altimeter")?.get("value")?;
     let qnh: i64 = if qnh_val.is_f64() {
         qnh_val.as_f64()?.mul(100.).round() as i64
@@ -317,7 +310,7 @@ fn get_qnh(json: &Value, units: &Units) -> Option<MetarField> {
     Some(MetarField::Qnh(qnh, units.pressure))
 }
 
-fn get_temp(json: &Value, units: &Units) -> Option<MetarField> {
+fn get_temp(json: &Value, units: Units) -> Option<MetarField> {
     let temp = json.get("temperature")?.get("value")?.as_i64()?;
     let dewpoint = json.get("dewpoint")?.get("value")?.as_i64()?;
     Some(MetarField::Temperature {
@@ -333,7 +326,7 @@ fn get_wind_var(json: &Value) -> Option<MetarField> {
     for dir in wind_dirs {
         dirs.push(dir.get("value")?.as_i64()?);
     }
-    dirs.sort();
+    dirs.sort_unstable();
     let low_dir = dirs.first()?;
     let hi_dir = dirs.last()?;
     Some(MetarField::WindVariability {
@@ -342,13 +335,13 @@ fn get_wind_var(json: &Value) -> Option<MetarField> {
     })
 }
 
-fn get_winds(json: &Value, units: &Units) -> Option<MetarField> {
+fn get_winds(json: &Value, units: Units) -> Option<MetarField> {
     let direction = json.get("wind_direction")?.get("value")?.as_i64()?;
     let strength = json.get("wind_speed")?.get("value")?.as_i64()?;
     let gusts = json
         .get("wind_gust")
         .and_then(|g| g.get("value"))
-        .and_then(|g| g.as_i64())
+        .and_then(serde_json::Value::as_i64)
         .unwrap_or(0);
 
     Some(MetarField::Wind {
@@ -359,7 +352,7 @@ fn get_winds(json: &Value, units: &Units) -> Option<MetarField> {
     })
 }
 
-fn get_visibility(json: &Value, _units: &Units) -> Option<MetarField> {
+fn get_visibility(json: &Value, _units: Units) -> Option<MetarField> {
     let vis = json.get("visibility")?.get("value")?.as_i64()?;
     Some(MetarField::Visibility(vis))
 }

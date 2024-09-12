@@ -23,7 +23,7 @@ pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     }
 }
 
-/// Given a properly formattet position string and Secrets, requests METAR from AvWx and wraps the Response in a Result.
+/// Given a properly formattet position string and Secrets, requests METAR from `AvWx` and wraps the Response in a Result.
 async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, Error> {
     let uri = format!("https://avwx.rest/api/metar/{position}?onfail=nearest&options=info");
     let resp: Response = Client::new()
@@ -52,21 +52,14 @@ async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<Strin
     let lat = body.get("latitude")?.as_f64()?;
     let lon = body.get("longitude")?.as_f64()?;
 
-    println!("{}/{}", lat, lon);
-
-    let uri = format!(
-        "https://avwx.rest/api/station/near/{},{}?n=1&reporting=true",
-        lat, lon
-    );
+    let uri = format!("https://avwx.rest/api/station/near/{lat},{lon}?n=1&reporting=true");
     let resp = client
         .get(uri)
         .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))
         .send()
         .await
         .ok()?;
-    println!("{:?}", resp);
     let value = &resp.json::<Value>().await.ok()?;
-    println!("val: {value}");
     let station = value.get(0)?.get("station")?.get("icao")?.as_str()?;
 
     Some(station.to_string())
@@ -74,7 +67,7 @@ async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<Strin
 
 /// For a given ICAO code as String and the necessary Secrets makes request to AvWx to check if the code is valid.
 pub async fn check_icao_code(icao: &String, secrets: &Secrets) -> bool {
-    let uri = format!("https://avwx.rest/api/station/{}", icao);
+    let uri = format!("https://avwx.rest/api/station/{icao}");
 
     let resp = Client::new()
         .get(uri)
