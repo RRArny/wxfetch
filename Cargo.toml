@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Robin Arnold"]
 description = "Console utility for accessing aviation weather information from the command line."
 license-file = "LICENSE.txt"
-homepage = "robin-arnold.de"
+homepage = "http://www.robin-arnold.de"
 repository = "https://github.com/RRArny/wxfetch"
 
 [dependencies]
