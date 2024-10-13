@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use super::MetarField;
+use super::WxField;
 use anyhow::anyhow;
 use regex::Regex;
 use serde_json::Value;
@@ -23,8 +23,8 @@ pub enum Clouds {
 }
 
 /// Parses a METAR in JSON form and returns a `Vec` of `MetarField::Clouds` describing the cloud information contained.
-pub fn get_clouds_from_json(json: &Value) -> Vec<MetarField> {
-    let mut result: Vec<MetarField> = Vec::new();
+pub fn get_clouds_from_json(json: &Value) -> Vec<WxField> {
+    let mut result: Vec<WxField> = Vec::new();
     if let Some(wxcodes) = json.get("clouds").and_then(|x| x.as_array()) {
         for code in wxcodes {
             if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
@@ -38,14 +38,14 @@ pub fn get_clouds_from_json(json: &Value) -> Vec<MetarField> {
 }
 
 /// From a METAR compliant cloud code representation string (`&str`) parses a `MetarField::Cloud`.
-fn clouds_from_str(repr: &str) -> Option<MetarField> {
+fn clouds_from_str(repr: &str) -> Option<WxField> {
     let regex = format!("(?<obscuration>{})(?<level>\\d*)", Clouds::get_regex());
     let regex = Regex::new(&regex)
         .expect("Creating RegEx pattern failed. This is likely a software bug, please report it.");
     let matches = regex.captures(repr)?;
     let obscuration: Clouds = matches["obscuration"].parse().ok()?;
     let level: i64 = matches["level"].parse().unwrap_or(0);
-    Some(MetarField::Clouds(obscuration, level))
+    Some(WxField::Clouds(obscuration, level))
 }
 
 impl Clouds {
@@ -97,7 +97,7 @@ mod tests {
 
     use serde_json::Value;
 
-    use crate::metar::MetarField;
+    use crate::metar::WxField;
 
     use super::{clouds_from_str, get_clouds_from_json, Clouds};
 
@@ -110,14 +110,14 @@ mod tests {
 
     #[test]
     fn test_clouds_from_str() {
-        let expected = MetarField::Clouds(Clouds::Skc, 0);
+        let expected = WxField::Clouds(Clouds::Skc, 0);
         let actual = clouds_from_str("SKC");
         assert_eq!(Some(expected), actual);
     }
 
     #[test]
     fn test_clouds_from_str_sct() {
-        let expected = MetarField::Clouds(Clouds::Sct, 50);
+        let expected = WxField::Clouds(Clouds::Sct, 50);
         let actual = clouds_from_str("SCT50");
         assert_eq!(Some(expected), actual);
     }
@@ -128,10 +128,10 @@ mod tests {
             "{\"clouds\":[{\"repr\": \"SCT050\"},{\"repr\": \"BRK100\"},{\"repr\": \"OVC200\"}]}",
         )
         .unwrap();
-        let expected: Vec<MetarField> = vec![
-            MetarField::Clouds(Clouds::Sct, 50),
-            MetarField::Clouds(Clouds::Brk, 100),
-            MetarField::Clouds(Clouds::Ovc, 200),
+        let expected: Vec<WxField> = vec![
+            WxField::Clouds(Clouds::Sct, 50),
+            WxField::Clouds(Clouds::Brk, 100),
+            WxField::Clouds(Clouds::Ovc, 200),
         ];
         let actual = get_clouds_from_json(&json);
         assert_eq!(expected, actual);

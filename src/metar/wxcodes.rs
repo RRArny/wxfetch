@@ -1,4 +1,4 @@
-use super::MetarField;
+use super::WxField;
 use anyhow::{anyhow, Error};
 use regex::Regex;
 use serde_json::Value;
@@ -294,7 +294,7 @@ impl Display for WxCodeDescription {
     }
 }
 
-pub(crate) fn wxcode_from_str(repr: &str) -> Option<MetarField> {
+pub(crate) fn wxcode_from_str(repr: &str) -> Option<WxField> {
     let regex_pattern = format!(
         r"(?<intensity>({})?)(?<descr>({})?)(?<code>{})(?<location>({})?)",
         WxCodeIntensity::get_regex(),
@@ -310,11 +310,11 @@ pub(crate) fn wxcode_from_str(repr: &str) -> Option<MetarField> {
     let descriptor: WxCodeDescription = matches["descr"].parse().ok()?;
     let proximity: WxCodeProximity = matches["location"].parse().ok()?;
 
-    Some(MetarField::WxCode(code, intensity, proximity, descriptor))
+    Some(WxField::WxCode(code, intensity, proximity, descriptor))
 }
 
-pub fn get_wxcodes_from_json(json: &Value) -> Vec<MetarField> {
-    let mut result: Vec<MetarField> = Vec::new();
+pub fn get_wxcodes_from_json(json: &Value) -> Vec<WxField> {
+    let mut result: Vec<WxField> = Vec::new();
     if let Some(wxcodes) = json.get("wx_codes").and_then(|x| x.as_array()) {
         for code in wxcodes {
             if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
@@ -333,7 +333,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::{get_wxcodes_from_json, WxCode, WxCodeIntensity};
-    use crate::metar::{MetarField, WxCodeProximity};
+    use crate::metar::{WxCodeProximity, WxField};
 
     #[test]
     fn test_get_regex() {
@@ -358,7 +358,7 @@ mod tests {
 
     #[test]
     fn test_get_wxcodes_one() {
-        let expected: Vec<MetarField> = vec![MetarField::WxCode(
+        let expected: Vec<WxField> = vec![WxField::WxCode(
             WxCode::Ra,
             WxCodeIntensity::Light,
             WxCodeProximity::OnStation,

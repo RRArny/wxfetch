@@ -65,7 +65,7 @@ async fn get_nearest_station(config: &Config, secrets: &Secrets) -> Option<Strin
     Some(station.to_string())
 }
 
-/// For a given ICAO code as String and the necessary Secrets makes request to AvWx to check if the code is valid.
+/// For a given ICAO code as String and the necessary Secrets makes request to avwx to check if the code is valid.
 pub async fn check_icao_code(icao: &String, secrets: &Secrets) -> bool {
     let uri = format!("https://avwx.rest/api/station/{icao}");
 

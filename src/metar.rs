@@ -22,7 +22,7 @@ pub struct Metar {
     /// ICAO code of the issuing station.
     icao_code: String,
     /// Contents of the report.
-    fields: Vec<MetarField>,
+    fields: Vec<WxField>,
     /// True, if this METAR was issued by the exact station that was requested, false otherwise.
     exact_match: bool,
     // / Units.
@@ -31,7 +31,7 @@ pub struct Metar {
 
 #[derive(PartialEq, Eq, Debug)]
 /// Elements of a METAR report.
-pub enum MetarField {
+pub enum WxField {
     /// Issue time.
     TimeStamp(DateTime<FixedOffset>),
     /// Prevailing winds.
@@ -61,31 +61,29 @@ pub enum MetarField {
     Remarks(String),
 }
 
-impl MetarField {
+impl WxField {
     pub fn colourise(&self) -> ColoredString {
         match self {
-            MetarField::Visibility(vis) => colourise_visibility(*vis),
-            MetarField::TimeStamp(datetime) => colourize_timestamp(datetime),
-            MetarField::Wind {
+            WxField::Visibility(vis) => colourise_visibility(*vis),
+            WxField::TimeStamp(datetime) => colourize_timestamp(datetime),
+            WxField::Wind {
                 direction,
                 strength,
                 gusts,
                 unit,
             } => colourise_wind(*direction, *strength, *gusts, *unit),
-            MetarField::WindVariability { low_dir, hi_dir } => {
-                colourise_wind_var(*low_dir, *hi_dir)
-            }
-            MetarField::Temperature {
+            WxField::WindVariability { low_dir, hi_dir } => colourise_wind_var(*low_dir, *hi_dir),
+            WxField::Temperature {
                 temp,
                 dewpoint,
                 unit,
             } => colourise_temperature(*temp, *dewpoint, *unit),
-            MetarField::Qnh(qnh, unit) => colourise_qnh(*qnh, *unit),
-            MetarField::WxCode(code, intensity, proximity, descriptor) => {
+            WxField::Qnh(qnh, unit) => colourise_qnh(*qnh, *unit),
+            WxField::WxCode(code, intensity, proximity, descriptor) => {
                 colourise_wx_code(code, intensity, proximity, descriptor)
             }
-            MetarField::Remarks(str) => str.black().on_white(),
-            MetarField::Clouds(cloud, alt) => colourise_clouds(cloud, *alt),
+            WxField::Remarks(str) => str.black().on_white(),
+            WxField::Clouds(cloud, alt) => colourise_clouds(cloud, *alt),
         }
     }
 }
@@ -123,7 +121,7 @@ fn colourise_wx_code(
     let intensitystr = format!("{intensity}").color(match intensity {
         WxCodeIntensity::Light => Color::BrightGreen,
         WxCodeIntensity::Heavy => Color::BrightRed,
-        _ => Color::White,
+        WxCodeIntensity::Moderate => Color::White,
     });
 
     let descrstr = format!("{descriptor}").color(match descriptor {
@@ -230,7 +228,7 @@ impl Metar {
 
         let units: Units = Units::from_json(json);
 
-        let mut fields: Vec<MetarField> = Vec::new();
+        let mut fields: Vec<WxField> = Vec::new();
 
         if let Some(time) = get_timestamp(json) {
             fields.push(time);
@@ -288,18 +286,19 @@ impl Metar {
     }
 }
 
-fn get_remarks(json: &Value) -> Option<MetarField> {
+fn get_remarks(json: &Value) -> Option<WxField> {
     let rmks = json.get("remarks")?.as_str()?.to_string();
-    Some(MetarField::Remarks(rmks))
+    Some(WxField::Remarks(rmks))
 }
 
-fn get_timestamp(json: &Value) -> Option<MetarField> {
+fn get_timestamp(json: &Value) -> Option<WxField> {
     let datetime_str = json.get("time")?.get("dt")?.as_str()?;
     let datetime = DateTime::parse_from_rfc3339(datetime_str).ok()?;
-    Some(MetarField::TimeStamp(datetime))
+    Some(WxField::TimeStamp(datetime))
 }
 
-fn get_qnh(json: &Value, units: Units) -> Option<MetarField> {
+#[allow(clippy::cast_possible_truncation)]
+fn get_qnh(json: &Value, units: Units) -> Option<WxField> {
     let qnh_val: &Value = json.get("altimeter")?.get("value")?;
     let qnh: i64 = if qnh_val.is_f64() {
         qnh_val.as_f64()?.mul(100.).round() as i64
@@ -307,20 +306,20 @@ fn get_qnh(json: &Value, units: Units) -> Option<MetarField> {
         qnh_val.as_i64()?
     };
 
-    Some(MetarField::Qnh(qnh, units.pressure))
+    Some(WxField::Qnh(qnh, units.pressure))
 }
 
-fn get_temp(json: &Value, units: Units) -> Option<MetarField> {
+fn get_temp(json: &Value, units: Units) -> Option<WxField> {
     let temp = json.get("temperature")?.get("value")?.as_i64()?;
     let dewpoint = json.get("dewpoint")?.get("value")?.as_i64()?;
-    Some(MetarField::Temperature {
+    Some(WxField::Temperature {
         temp,
         dewpoint,
         unit: units.temperature,
     })
 }
 
-fn get_wind_var(json: &Value) -> Option<MetarField> {
+fn get_wind_var(json: &Value) -> Option<WxField> {
     let wind_dirs = json.get("wind_variable_direction")?.as_array()?;
     let mut dirs: Vec<i64> = Vec::new();
     for dir in wind_dirs {
@@ -329,13 +328,13 @@ fn get_wind_var(json: &Value) -> Option<MetarField> {
     dirs.sort_unstable();
     let low_dir = dirs.first()?;
     let hi_dir = dirs.last()?;
-    Some(MetarField::WindVariability {
+    Some(WxField::WindVariability {
         low_dir: *low_dir,
         hi_dir: *hi_dir,
     })
 }
 
-fn get_winds(json: &Value, units: Units) -> Option<MetarField> {
+fn get_winds(json: &Value, units: Units) -> Option<WxField> {
     let direction = json.get("wind_direction")?.get("value")?.as_i64()?;
     let strength = json.get("wind_speed")?.get("value")?.as_i64()?;
     let gusts = json
@@ -344,7 +343,7 @@ fn get_winds(json: &Value, units: Units) -> Option<MetarField> {
         .and_then(serde_json::Value::as_i64)
         .unwrap_or(0);
 
-    Some(MetarField::Wind {
+    Some(WxField::Wind {
         direction,
         strength,
         gusts,
@@ -352,9 +351,9 @@ fn get_winds(json: &Value, units: Units) -> Option<MetarField> {
     })
 }
 
-fn get_visibility(json: &Value, _units: Units) -> Option<MetarField> {
+fn get_visibility(json: &Value, _units: Units) -> Option<WxField> {
     let vis = json.get("visibility")?.get("value")?.as_i64()?;
-    Some(MetarField::Visibility(vis))
+    Some(WxField::Visibility(vis))
 }
 
 fn is_exact_match(station: &str, config: &Config) -> bool {
@@ -390,7 +389,7 @@ mod tests {
         };
         let expected = DateTime::parse_from_rfc3339("2024-06-21T05:50:00Z").unwrap();
         let metar = Metar::from_json(&json, &config);
-        assert!(metar.is_some_and(|m| m.fields.contains(&MetarField::TimeStamp(expected))));
+        assert!(metar.is_some_and(|m| m.fields.contains(&WxField::TimeStamp(expected))));
     }
 
     #[test]
@@ -446,7 +445,7 @@ mod tests {
     #[test]
     fn test_get_winds() {
         let json: Value = Value::from_str("{\"wind_direction\": {\"value\":100}, \"wind_speed\":{\"value\":10}, \"wind_gust\":{\"value\":15}}").unwrap();
-        let expected = MetarField::Wind {
+        let expected = WxField::Wind {
             direction: 100,
             strength: 10,
             gusts: 15,
@@ -461,7 +460,7 @@ mod tests {
         let json: Value =
             Value::from_str("{\"wind_direction\": {\"value\":100}, \"wind_speed\":{\"value\":10}}")
                 .unwrap();
-        let expected = MetarField::Wind {
+        let expected = WxField::Wind {
             direction: 100,
             strength: 10,
             gusts: 0,
@@ -474,7 +473,7 @@ mod tests {
     #[test]
     fn test_get_qnh() {
         let json: Value = Value::from_str("{\"altimeter\":{\"value\": 1013}}").unwrap();
-        let expected = MetarField::Qnh(1013, PressureUnit::Hpa);
+        let expected = WxField::Qnh(1013, PressureUnit::Hpa);
         let actual = get_qnh(&json, Units::default());
         assert!(actual.is_some_and(|q| q == expected));
     }
@@ -482,7 +481,7 @@ mod tests {
     #[test]
     fn test_get_qnh_inhg() {
         let json: Value = Value::from_str("{\"altimeter\":{\"value\": 29.92}}").unwrap();
-        let expected = MetarField::Qnh(2992, PressureUnit::Inhg);
+        let expected = WxField::Qnh(2992, PressureUnit::Inhg);
         let units = Units {
             pressure: PressureUnit::Inhg,
             altitude: AltitudeUnit::Ft,
@@ -500,7 +499,7 @@ mod tests {
         let json: Value = Value::from_str("{\"remarks\":\"RWY UNAVAILABLE\"}").unwrap();
         let expected = "RWY UNAVAILABLE".to_string();
         let actual = get_remarks(&json);
-        assert!(actual.is_some_and(|r| r == MetarField::Remarks(expected)));
+        assert!(actual.is_some_and(|r| r == WxField::Remarks(expected)));
     }
 
     #[test]
@@ -508,7 +507,7 @@ mod tests {
         let json: Value =
             Value::from_str("{\"temperature\":{\"value\": 10}, \"dewpoint\":{\"value\": 9}}")
                 .unwrap();
-        let expected: MetarField = MetarField::Temperature {
+        let expected: WxField = WxField::Temperature {
             temp: 10,
             dewpoint: 9,
             unit: TemperatureUnit::C,
@@ -522,7 +521,7 @@ mod tests {
         let json: Value =
             Value::from_str("{\"wind_variable_direction\":[{\"value\" : 80},{\"value\" : 150}]}")
                 .unwrap();
-        let expected: MetarField = MetarField::WindVariability {
+        let expected: WxField = WxField::WindVariability {
             low_dir: 80,
             hi_dir: 150,
         };
@@ -533,7 +532,7 @@ mod tests {
     #[test]
     fn test_get_visibility() {
         let json: Value = Value::from_str("{\"visibility\":{\"value\":9999}}").unwrap();
-        let expected: MetarField = MetarField::Visibility(9999);
+        let expected: WxField = WxField::Visibility(9999);
         let actual = get_visibility(&json, Units::default());
         assert!(actual.is_some_and(|v| v == expected));
     }
