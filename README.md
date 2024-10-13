@@ -12,7 +12,7 @@ If there is any problem with the provided arguments WXfetch will print an error 
 
 ## Configuration
 
-`todo()`!
+So far, no configuration options other than the ones described above are recognised, but they're coming in the future!
 
 ## Providing API keys
 
