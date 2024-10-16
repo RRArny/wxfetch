@@ -13,7 +13,6 @@
 use crate::{Config, Position};
 use chrono::DateTime;
 use chrono::FixedOffset;
-use chrono::TimeDelta;
 use chrono::Utc;
 use colored::{Color, ColoredString, Colorize};
 use serde_json::Value;
@@ -74,41 +73,43 @@ pub enum WxField {
 }
 
 impl WxField {
-    pub fn colourise(&self) -> ColoredString {
+    pub fn colourise(&self, config: &Config) -> ColoredString {
         match self {
-            WxField::Visibility(vis) => colourise_visibility(*vis),
-            WxField::TimeStamp(datetime) => colourize_timestamp(datetime),
+            WxField::Visibility(vis) => colourise_visibility(*vis, config),
+            WxField::TimeStamp(datetime) => colourize_timestamp(datetime, config),
             WxField::Wind {
                 direction,
                 strength,
                 gusts,
                 unit,
-            } => colourise_wind(*direction, *strength, *gusts, *unit),
-            WxField::WindVariability { low_dir, hi_dir } => colourise_wind_var(*low_dir, *hi_dir),
+            } => colourise_wind(*direction, *strength, *gusts, *unit, config),
+            WxField::WindVariability { low_dir, hi_dir } => {
+                colourise_wind_var(*low_dir, *hi_dir, config)
+            }
             WxField::Temperature {
                 temp,
                 dewpoint,
                 unit,
-            } => colourise_temperature(*temp, *dewpoint, *unit),
-            WxField::Qnh(qnh, unit) => colourise_qnh(*qnh, *unit),
+            } => colourise_temperature(*temp, *dewpoint, *unit, config),
+            WxField::Qnh(qnh, unit) => colourise_qnh(*qnh, *unit, config),
             WxField::WxCode(code, intensity, proximity, descriptor) => {
-                colourise_wx_code(code, intensity, proximity, descriptor)
+                colourise_wx_code(code, intensity, proximity, descriptor, config)
             }
             WxField::Remarks(str) => str.black().on_white(),
-            WxField::Clouds(cloud, alt) => colourise_clouds(cloud, *alt),
+            WxField::Clouds(cloud, alt) => colourise_clouds(cloud, *alt, config),
         }
     }
 }
 
-fn colourise_clouds(cloud: &Clouds, alt: i64) -> ColoredString {
+fn colourise_clouds(cloud: &Clouds, alt: i64, config: &Config) -> ColoredString {
     let res: ColoredString = format!("{cloud}").color(match cloud {
         Clouds::Ovc => Color::Red,
         Clouds::Brk => Color::Yellow,
         _ => Color::Green,
     });
-    let altstr: ColoredString = format!("{alt}").color(if alt <= 10 {
+    let altstr: ColoredString = format!("{alt}").color(if alt <= config.cloud_minimum {
         Color::Red
-    } else if alt <= 30 {
+    } else if alt <= config.cloud_marginal {
         Color::Yellow
     } else {
         Color::Green
@@ -121,6 +122,7 @@ fn colourise_wx_code(
     intensity: &WxCodeIntensity,
     proximity: &WxCodeProximity,
     descriptor: &WxCodeDescription,
+    _config: &Config,
 ) -> ColoredString {
     let codestr = format!("{code}").color(match code {
         WxCode::Ra => Color::BrightYellow,
@@ -146,7 +148,7 @@ fn colourise_wx_code(
     format!("{intensitystr}{descrstr}{codestr}{proximity}").magenta()
 }
 
-fn colourise_qnh(qnh: i64, unit: PressureUnit) -> ColoredString {
+fn colourise_qnh(qnh: i64, unit: PressureUnit, _config: &Config) -> ColoredString {
     match unit {
         PressureUnit::Hpa => format!("Q{qnh}").color(if qnh >= 1013 {
             Color::Green
@@ -161,70 +163,85 @@ fn colourise_qnh(qnh: i64, unit: PressureUnit) -> ColoredString {
     }
 }
 
-fn colourise_temperature(temp: i64, dewpoint: i64, _unit: TemperatureUnit) -> ColoredString {
-    let temp_str = temp.to_string().color(if temp > 0 {
+fn colourise_temperature(
+    temp: i64,
+    dewpoint: i64,
+    _unit: TemperatureUnit,
+    config: &Config,
+) -> ColoredString {
+    let temp_str = temp.to_string().color(if temp > config.temp_minimum {
         Color::BrightGreen
     } else {
         Color::BrightRed
     });
-    let dew_str = dewpoint.to_string().color(if temp - dewpoint > 3 {
-        Color::Green
-    } else {
-        Color::Red
-    });
+    let dew_str = dewpoint
+        .to_string()
+        .color(if temp - dewpoint > config.spread_minimum {
+            Color::Green
+        } else {
+            Color::Red
+        });
     format!("{temp_str}/{dew_str}").into()
 }
 
-fn colourise_wind_var(low_dir: i64, hi_dir: i64) -> ColoredString {
-    format!("{low_dir}V{hi_dir}").color(if hi_dir - low_dir < 45 {
+fn colourise_wind_var(low_dir: i64, hi_dir: i64, config: &Config) -> ColoredString {
+    format!("{low_dir}V{hi_dir}").color(if hi_dir - low_dir < config.wind_var_maximum {
         Color::Green
     } else {
         Color::Yellow
     })
 }
 
-fn colourise_wind(direction: i64, strength: i64, gusts: i64, _unit: SpeedUnit) -> ColoredString {
+fn colourise_wind(
+    direction: i64,
+    strength: i64,
+    gusts: i64,
+    _unit: SpeedUnit,
+    config: &Config,
+) -> ColoredString {
     let dir_str = format!("{direction:03}").to_string();
-    let strength_str = format!("{strength:02}")
-        .to_string()
-        .color(if strength > 15 {
-            Color::Red
-        } else {
-            Color::Green
-        });
-    let mut output: ColoredString = format!("{dir_str}{strength_str}").into();
-    if gusts > 0 {
-        let gust_str = format!("{gusts:02}")
+    let strength_str =
+        format!("{strength:02}")
             .to_string()
-            .color(if gusts - strength > 5 {
-                Color::BrightRed
+            .color(if strength > config.wind_maximum {
+                Color::Red
             } else {
                 Color::Green
             });
+    let mut output: ColoredString = format!("{dir_str}{strength_str}").into();
+    if gusts > 0 {
+        let gust_str =
+            format!("{gusts:02}")
+                .to_string()
+                .color(if gusts - strength > config.gust_maximum {
+                    Color::BrightRed
+                } else {
+                    Color::Green
+                });
         output = format!("{output}G{gust_str}").into();
     }
     output = format!("{output}KT").into();
     output
 }
 
-fn colourize_timestamp(datetime: &DateTime<FixedOffset>) -> ColoredString {
+fn colourize_timestamp(datetime: &DateTime<FixedOffset>, config: &Config) -> ColoredString {
     let now: DateTime<Utc> = Utc::now();
     let utctime = datetime.to_utc();
     let dt = now.sub(utctime);
     let str_rep: String = utctime.format("%d%H%MZ").to_string();
-    str_rep.color(if dt.lt(&TimeDelta::hours(1)) {
+    str_rep.color(if dt.lt(&config.age_marginal) {
         Color::Green
-    } else if dt.lt(&TimeDelta::hours(6)) {
+    } else if dt.lt(&config.age_maximum) {
         Color::Yellow
     } else {
         Color::Red
     })
 }
 
-fn colourise_visibility(vis: i64) -> ColoredString {
-    if vis >= 6000 {
+fn colourise_visibility(vis: i64, config: &Config) -> ColoredString {
+    if vis >= config.visibility_marginal {
         vis.to_string().green()
-    } else if vis > 1500 {
+    } else if vis > config.visibility_minimum {
         vis.to_string().yellow()
     } else {
         vis.to_string().red()
@@ -283,7 +300,7 @@ impl Metar {
         })
     }
 
-    pub fn colorise(self) -> ColoredString {
+    pub fn colorise(self, config: &Config) -> ColoredString {
         let mut coloured_string: ColoredString = if self.exact_match {
             self.icao_code.bright_white().on_blue()
         } else {
@@ -291,7 +308,7 @@ impl Metar {
         };
 
         for field in self.fields {
-            coloured_string = format!("{} {}", coloured_string, field.colourise()).into();
+            coloured_string = format!("{} {}", coloured_string, field.colourise(config)).into();
         }
 
         coloured_string
@@ -388,6 +405,7 @@ mod tests {
         let json: Value = Value::from_str("{\"station\":\"EDRK\"}").unwrap();
         let config = Config {
             position: Position::Airfield("EDRK".to_string()),
+            ..Default::default()
         };
         let metar = Metar::from_json(&json, &config);
         assert!(metar.is_some_and(|m| m.icao_code == "EDRK"));
@@ -398,6 +416,7 @@ mod tests {
         let json: Value = Value::from_str("{\"time\":{\"dt\":\"2024-06-21T05:50:00Z\"}}").unwrap();
         let config = Config {
             position: Position::Airfield("EDRK".to_string()),
+            ..Default::default()
         };
         let expected = DateTime::parse_from_rfc3339("2024-06-21T05:50:00Z").unwrap();
         let metar = Metar::from_json(&json, &config);
@@ -408,6 +427,7 @@ mod tests {
     fn test_is_exact_match_positive() {
         let config = Config {
             position: Position::Airfield("EDDK".to_string()),
+            ..Default::default()
         };
         assert!(is_exact_match("EDDK", &config));
     }
@@ -416,6 +436,7 @@ mod tests {
     fn test_is_exact_match_negative() {
         let config = Config {
             position: Position::Airfield("EDDK".to_string()),
+            ..Default::default()
         };
         assert!(!is_exact_match("EDRK", &config));
     }
@@ -424,6 +445,7 @@ mod tests {
     fn test_is_exact_match_geoip() {
         let config = Config {
             position: Position::GeoIP,
+            ..Default::default()
         };
         assert!(is_exact_match("EDRK", &config));
     }
@@ -432,25 +454,29 @@ mod tests {
     fn test_is_exact_match_latlong() {
         let config = Config {
             position: Position::LatLong(crate::LatLong(10.0, 10.0)),
+            ..Default::default()
         };
         assert!(is_exact_match("EDRK", &config));
     }
 
     #[test]
     fn test_colourise_visibility_good() {
-        let vis_str: ColoredString = colourise_visibility(9999);
+        let config = Config::default();
+        let vis_str: ColoredString = colourise_visibility(9999, &config);
         assert_eq!(vis_str.fgcolor(), Some(Color::Green));
     }
 
     #[test]
     fn test_colourise_visibility_medium() {
-        let vis_str: ColoredString = colourise_visibility(2000);
+        let config = Config::default();
+        let vis_str: ColoredString = colourise_visibility(2000, &config);
         assert_eq!(vis_str.fgcolor(), Some(Color::Yellow));
     }
 
     #[test]
     fn test_colourise_visibility_bad() {
-        let vis_str: ColoredString = colourise_visibility(1000);
+        let config = Config::default();
+        let vis_str: ColoredString = colourise_visibility(1000, &config);
         assert_eq!(vis_str.fgcolor(), Some(Color::Red));
     }
 

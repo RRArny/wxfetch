@@ -35,7 +35,7 @@ pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     }
 }
 
-/// Given a properly formattet position string and Secrets, requests METAR from `AvWx` and wraps the Response in a Result.
+/// Given a properly formattet position string and Secrets, requests METAR from avwx and wraps the Response in a Result.
 async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, Error> {
     let uri = format!("https://avwx.rest/api/metar/{position}?onfail=nearest&options=info");
     let resp: Response = Client::new()

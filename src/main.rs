@@ -11,6 +11,7 @@
 // WxFetch - main.rs
 
 use api::{check_icao_code, request_wx};
+use chrono::TimeDelta;
 use clap::Parser;
 use colored::ColoredString;
 use std::{fs::File, io::Read};
@@ -40,6 +41,36 @@ struct Args {
 
 struct Config {
     position: Position,
+    cloud_minimum: i64,
+    cloud_marginal: i64,
+    temp_minimum: i64,
+    spread_minimum: i64,
+    wind_var_maximum: i64,
+    wind_maximum: i64,
+    gust_maximum: i64,
+    age_maximum: TimeDelta,
+    age_marginal: TimeDelta,
+    visibility_minimum: i64,
+    visibility_marginal: i64,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            position: Position::GeoIP,
+            cloud_minimum: 6,
+            cloud_marginal: 15,
+            temp_minimum: 0,
+            spread_minimum: 3,
+            wind_var_maximum: 45,
+            wind_maximum: 15,
+            gust_maximum: 10,
+            age_maximum: TimeDelta::hours(1),
+            age_marginal: TimeDelta::hours(6),
+            visibility_minimum: 1500,
+            visibility_marginal: 5000,
+        }
+    }
 }
 
 struct Secrets {
@@ -69,6 +100,7 @@ async fn get_config(secrets: &Secrets) -> Config {
         if check_icao_code(&icao, secrets).await {
             return Config {
                 position: Position::Airfield(icao),
+                ..Default::default()
             };
         }
         println!("Invalid airfield {icao}. Defaulting to geoip...");
@@ -76,6 +108,7 @@ async fn get_config(secrets: &Secrets) -> Config {
         if let Some(long) = args.longitude {
             return Config {
                 position: Position::LatLong(LatLong(lat, long)),
+                ..Default::default()
             };
         }
         println!("Please provide both Latitude and Longitude. Defaulting to geoip...");
@@ -83,6 +116,7 @@ async fn get_config(secrets: &Secrets) -> Config {
 
     Config {
         position: Position::GeoIP,
+        ..Default::default()
     }
 }
 
@@ -91,7 +125,7 @@ async fn get_weather(config: &Config, secrets: &Secrets) -> ColoredString {
         .await
         .expect("Weather request failed.");
     let metar = Metar::from_json(&json, config).expect("Invalid weather data received...");
-    metar.colorise()
+    metar.colorise(config)
 }
 
 #[tokio::main]

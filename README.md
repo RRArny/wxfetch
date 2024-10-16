@@ -20,5 +20,6 @@ For wxfetch to work you will need a free account on https://avwx.rest/. Once you
 
 ## Todos
 
-- [ ] Personal wx minima
 - [ ] Configuration options
+  - [ ] Personal wx minima
+- [ ] Load secret from environment instead of file
