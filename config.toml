@@ -1,0 +1,23 @@
+[position]
+airfield = "EDRK"
+
+[clouds]
+cloud_minimum = 6
+cloud_marginal = 15
+
+[temperature]
+temp_minimum = 0
+spread_minimum = 3
+
+[wind]
+wind_var_maximum = 45
+wind_maximum = 15
+gust_maximum = 10
+
+[age]
+age_maximum = 21600
+age_marginal = 3600
+
+[visibility]
+visibility_minimum = 1500
+visibility_marginal = 5000

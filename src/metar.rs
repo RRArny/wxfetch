@@ -239,13 +239,13 @@ fn colourize_timestamp(datetime: &DateTime<FixedOffset>, config: &Config) -> Col
 }
 
 fn colourise_visibility(vis: i64, config: &Config) -> ColoredString {
-    if vis >= config.visibility_marginal {
-        vis.to_string().green()
+    format!("{vis:04}").color(if vis >= config.visibility_marginal {
+        Color::Green
     } else if vis > config.visibility_minimum {
-        vis.to_string().yellow()
+        Color::Yellow
     } else {
-        vis.to_string().red()
-    }
+        Color::Red
+    })
 }
 
 impl Metar {
