@@ -8,6 +8,8 @@ If you provide no flags to WXfetch at all, it will try and fetch weather info fr
 
 With `-a` or `--airfield` you can provide the ICAO or IATA code for a reporting station. Alternatively, with `--lat` and `--lon` you can provide geographical coordinates. WXfetch will then try and find a reporting station close to that position. Please make sure to provide both parameters.
 
+With `-c` or `--config-file` you can specify a configuration file as described below.
+
 If there is any problem with the provided arguments WXfetch will print an error message and default to geoip.
 
 ## Configuration
