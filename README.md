@@ -14,7 +14,7 @@ If there is any problem with the provided arguments WXfetch will print an error 
 
 ## Configuration
 
-The configuration is loaded from `~/.config/wxfetch/config.toml` or from a TOML-file as specified by the `-c` flag.
+The configuration is loaded from `~/.config/wxfetch/config.toml` or from a TOML-file as specified by the `-c` flag. If no configuration file is found it will default to sensible values.
 
 Except for position, these options present personal minima and reflect the colours used. For instance a cloud layer with an altitude lower than the specified minimum will be rendered red.
 
