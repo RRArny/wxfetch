@@ -111,7 +111,12 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
     let mut config = Config::default();
     let config_filepath = config_filepath
         .unwrap_or(std::env::var("HOME").expect(msg) + "/.config/wxfetch/config.toml");
-    let mut config_file = File::open(config_filepath).expect(msg);
+    let config_file = File::open(config_filepath.clone());
+    if config_file.is_err() {
+        println!("Could not open config file at {config_filepath}. Proceeding with defaults...");
+        return config;
+    }
+    let mut config_file = config_file.unwrap();
     let mut contents = String::new();
     config_file.read_to_string(&mut contents).expect(msg);
     let contents = contents.parse::<Table>().expect(msg);

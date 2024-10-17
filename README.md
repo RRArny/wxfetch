@@ -12,14 +12,45 @@ If there is any problem with the provided arguments WXfetch will print an error 
 
 ## Configuration
 
-So far, no configuration options other than the ones described above are recognised, but they're coming in the future!
+The configuration is loaded from `~/.config/wxfetch/config.toml` or from a TOML-file as specified by the `-c` flag.
 
+Except for position, these options present personal minima and reflect the colours used. For instance a cloud layer with an altitude lower than the specified minimum will be rendered red.
+
+It is advisable to just copy and modify the sample file from the git repository. The program expects the file to be structured as follows:
+
+### Position
+
+  - `airfield`: ICAO or IATA code of the reporting aerodrome.
+  - `lat` & `lon`: Latitude and longitude. The program will look for the nearest reporting station to these coordinates.
+
+If none of the options above are supplies the program defaults to geoip. Positions supplied as command line parameters override the options from the config file.
+
+### Clouds
+
+  - `cloud_minimum`: Minimum altitude for cloud layers.
+  - `cloud_marginal`: Altitude at which cloud layers will still be considered marginal.
+  
+### Temperature
+
+  - `temp_minimum`: Minimum temperature.
+  - `spread_minimum`: Minimum spread.
+
+### Wind
+
+  - `wind_var_maximum`: Maximum wind variability.
+  - `wind_maximum`: Maximum wind speed.
+  - `gust_maximum`: Maximum gust difference.
+  
+### Age
+
+  - `age_maximum`: Maximum age of the report.
+  - `age_marginal`: Marginal age of the report.
+  
+### Visibility
+
+  - `visibility_minimum`: Minimum visibility.
+  - `visibility_marginal`: Marginal visibility.
+  
 ## Providing API keys
 
-For wxfetch to work you will need a free account on https://avwx.rest/. Once you have created an account, go ahead and copy `secrets_template.toml` to `secrets.toml` and paste in your API key.
-
-## Todos
-
-- [ ] Configuration options
-  - [ ] Personal wx minima
-- [ ] Load secret from environment instead of file
+For wxfetch to work you will need a free account on https://avwx.rest/. Once you have created an account, go ahead and set the environment variable `AVWX_API_KEY` to your API key.
