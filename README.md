@@ -25,7 +25,7 @@ It is advisable to just copy and modify the sample file from the git repository.
   - `airfield`: ICAO or IATA code of the reporting aerodrome.
   - `lat` & `lon`: Latitude and longitude. The program will look for the nearest reporting station to these coordinates.
 
-If none of the options above are supplies the program defaults to geoip. Positions supplied as command line parameters override the options from the config file.
+If none of the options above are supplied the program defaults to geoip. Positions supplied as command line parameters override the options from the config file.
 
 ### Clouds
 
