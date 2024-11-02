@@ -5,7 +5,7 @@
 # You can also check bacon's own bacon.toml file
 #  as an example: https://github.com/Canop/bacon/blob/main/bacon.toml
 
-default_job = "check"
+default_job = "clippy"
 
 [jobs.check]
 command = ["cargo", "check", "--color", "always"]
@@ -23,6 +23,10 @@ command = [
     "--","-W", "clippy::pedantic"
 ]
 need_stdout = false
+
+[jobs.tarpaulin]
+command = ["cargo", "tarpaulin", "--color", "always"]
+need_stdout = true
 
 [jobs.clippy-all]
 command = [
@@ -87,3 +91,4 @@ allow_warnings = true
 [keybindings]
 # alt-m = "job:my-job"
 c = "job:clippy" # comment this to have 'c' run clippy on only the default target
+alt-t = "job:tarpaulin"
