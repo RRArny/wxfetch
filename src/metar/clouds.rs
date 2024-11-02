@@ -107,7 +107,6 @@ impl Display for Clouds {
 mod tests {
     use std::str::FromStr;
 
-    use anyhow::{Error, Result};
     use serde_json::Value;
 
     use crate::metar::WxField;
@@ -139,6 +138,12 @@ mod tests {
     fn test_clouds_from_str_err() {
         let actual = clouds_from_str("OCC33");
         assert!(actual.is_none());
+    }
+
+    #[test]
+    fn test_from_str_err() {
+        let str = "CLS9999";
+        assert!(Clouds::from_str(str).is_err());
     }
 
     #[test]

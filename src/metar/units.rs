@@ -161,8 +161,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_units_from_json_invalid() {
+    fn test_units_from_json_empty() {
         let json: Value = Value::from_str("{}").unwrap();
+        let expected: Units = Units {
+            pressure: PressureUnit::Hpa,
+            altitude: AltitudeUnit::Ft,
+            wind_speed: SpeedUnit::Kt,
+            temperature: TemperatureUnit::C,
+            distance: DistanceUnit::M,
+        };
+        let actual = Units::from_json(&json);
+        assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_units_from_json_invalid() {
+        let json: Value = Value::from_str("{\"units\":{\"altimeter\": \"aa\",\"altitude\":\"bb\",\"temperature\":\"cc\",\"wind_speed\": \"dd\", \"visibility\":\"ee\"}}").unwrap();
         let expected: Units = Units {
             pressure: PressureUnit::Hpa,
             altitude: AltitudeUnit::Ft,
