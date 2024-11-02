@@ -56,3 +56,7 @@ If none of the options above are supplied the program defaults to geoip. Positio
 ## Providing API keys
 
 For wxfetch to work you will need a free account on https://avwx.rest/. Once you have created an account, go ahead and set the environment variable `AVWX_API_KEY` to your API key.
+
+# Building from source
+
+Wxfetch is written in Rust. In order to build it, run `cargo build` for a debug build, for a production build run `cargo build --release`. This will generate a binary file within the `target` directory in the `debug` and `release` subdirectories respectively.
