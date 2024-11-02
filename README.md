@@ -62,3 +62,11 @@ For wxfetch to work you will need a free account on https://avwx.rest/. Once you
 Wxfetch is written in Rust. In order to build it, run `cargo build` for a debug build, for a production build run `cargo build --release`. This will generate a binary file within the `target` directory in the `debug` and `release` subdirectories respectively.
 
 For working on Wxfetch this repository includes a bacon configuration. Run `bacon` to have a variety of jobs at your disposal. `bacon clippy` (or using the 'c' key) will run the clippy linter at a pedantic level. `bacon test` (or 't') will run the unit tests. `bacon tarpaulin` (or 'alt-t') will calculate the code coverage using the `tarpaulin` plugin. You can install bacon using `cargo install bacon`.
+
+# Contributing
+
+This project is open source. If you would like to contribute, just fork the project, make your changes and create a pull request with a short description. I will only accept pull requests that satisfy the following criteria:
+- all unit tests are passing,
+- code coverage is above 50%,
+- all pedantic clippy hints that still occur are explained with a comment (if they are impossible or impractical to fix, I will also be pedantic with this!),
+- I deem the contribution worthwhile.

@@ -25,7 +25,8 @@ command = [
 need_stdout = false
 
 [jobs.tarpaulin]
-command = ["cargo", "tarpaulin", "--color", "always"]
+command = ["cargo", "tarpaulin", "--color", "always",
+"--", "--color", "always"]
 need_stdout = true
 
 [jobs.clippy-all]

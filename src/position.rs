@@ -66,17 +66,6 @@ mod test {
         let latlon = LatLong(51.4, 8.5);
         let expected = "51.4,8.5";
         let actual = latlon.to_string();
-        // let actual = format!("{latlon}");
-        assert!(expected == actual);
+        assert_eq!(expected, actual);
     }
-
-    // #[test]
-    // async fn test_locstr_icao() {
-    //     let icao = Position::Airfield("EDDF".to_string());
-    //     let expected = "EDDF";
-    //     let actual = icao.get_location_str().await;
-    //     assert!(expected == actual);
-    // }
-    // #[test]
-    // fn test_locstr_latlon() {}
 }
