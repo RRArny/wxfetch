@@ -29,28 +29,28 @@ If none of the options above are supplied the program defaults to geoip. Positio
 
 ### Clouds
 
-  - `cloud_minimum`: Minimum altitude for cloud layers.
+  - `cloud_minimum`: Minimum altitude for cloud layers in hectofeet (similar to flight levels).
   - `cloud_marginal`: Altitude at which cloud layers will still be considered marginal.
   
 ### Temperature
 
-  - `temp_minimum`: Minimum temperature.
+  - `temp_minimum`: Minimum temperature in °C.
   - `spread_minimum`: Minimum spread.
 
 ### Wind
 
-  - `wind_var_maximum`: Maximum wind variability.
+  - `wind_var_maximum`: Maximum wind variability in degrees.
   - `wind_maximum`: Maximum wind speed.
   - `gust_maximum`: Maximum gust difference.
   
 ### Age
 
-  - `age_maximum`: Maximum age of the report.
+  - `age_maximum`: Maximum age of the report in seconds.
   - `age_marginal`: Marginal age of the report.
   
 ### Visibility
 
-  - `visibility_minimum`: Minimum visibility.
+  - `visibility_minimum`: Minimum visibility in meters.
   - `visibility_marginal`: Marginal visibility.
   
 ## Providing API keys
