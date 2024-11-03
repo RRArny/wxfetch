@@ -574,4 +574,109 @@ mod tests {
         let actual = get_visibility(&json, Units::default());
         assert!(actual.is_some_and(|v| v == expected));
     }
+
+    #[test]
+    fn test_colourise_vis() {
+        let config = Config::default();
+        let vis = WxField::Visibility(9999);
+        let expected = colourise_visibility(9999, &config);
+        let actual = vis.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_wind() {
+        let config = Config::default();
+        let wind = WxField::Wind {
+            direction: 0,
+            strength: 0,
+            gusts: 0,
+            unit: SpeedUnit::Kt,
+        };
+        let expected = colourise_wind(0, 0, 0, SpeedUnit::Kt, &config);
+        let actual = wind.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_wind_var() {
+        let config = Config::default();
+        let wind = WxField::WindVariability {
+            low_dir: 0,
+            hi_dir: 10,
+        };
+        let expected = colourise_wind_var(0, 10, &config);
+        let actual = wind.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_temp() {
+        let config = Config::default();
+        let temp = WxField::Temperature {
+            temp: 20,
+            dewpoint: 10,
+            unit: TemperatureUnit::C,
+        };
+        let expected = colourise_temperature(20, 10, TemperatureUnit::C, &config);
+        let actual = temp.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_qnh() {
+        let config = Config::default();
+        let qnh = WxField::Qnh(1013, PressureUnit::Hpa);
+        let expected = colourise_qnh(1013, PressureUnit::Hpa, &config);
+        let actual = qnh.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_wxcode() {
+        let config = Config::default();
+        let wxcode = WxField::WxCode(
+            WxCode::Ra,
+            WxCodeIntensity::Moderate,
+            WxCodeProximity::OnStation,
+            WxCodeDescription::None,
+        );
+        let expected = colourise_wx_code(
+            &WxCode::Ra,
+            &WxCodeIntensity::Moderate,
+            &WxCodeProximity::OnStation,
+            &WxCodeDescription::None,
+            &config,
+        );
+        let actual = wxcode.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_rmk() {
+        let config = Config::default();
+        let rmk = WxField::Remarks("NONE".to_string());
+        let expected = "NONE".black().on_white();
+        let actual = rmk.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_clouds() {
+        let config = Config::default();
+        let clouds = WxField::Clouds(Clouds::Sct, 5000);
+        let expected = colourise_clouds(&Clouds::Sct, 5000, &config);
+        let actual = clouds.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_timestamp() {
+        let config = Config::default();
+        let fixed_offset = Utc::now().fixed_offset();
+        let timestamp = WxField::TimeStamp(fixed_offset);
+        let expected = colourize_timestamp(&fixed_offset, &config);
+        let actual = timestamp.colourise(&config);
+        assert_eq!(actual, expected);
+    }
 }
