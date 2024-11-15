@@ -21,6 +21,7 @@ use crate::{
     Args, Secrets,
 };
 
+#[derive(PartialEq, Debug)]
 pub struct Config {
     pub position: Position,
     pub cloud_minimum: i64,
@@ -184,4 +185,16 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
     }
 
     config
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_read_config_file() {
+        let expected = Config::default();
+        let actual = read_config_file(Some("./config.toml".to_string()));
+        assert_eq!(expected, actual);
+    }
 }

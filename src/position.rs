@@ -13,7 +13,7 @@
 use serde_json::Value;
 use std::fmt::Display;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Position {
     Airfield(String),
     GeoIP,
@@ -33,7 +33,7 @@ impl Position {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct LatLong(pub f64, pub f64);
 
 impl Display for LatLong {

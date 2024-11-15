@@ -1,5 +1,5 @@
 [position]
-airfield = "EDRK"
+# airfield = "EDRK"
 
 [clouds]
 cloud_minimum = 6
