@@ -10,6 +10,8 @@ With `-a` or `--airfield` you can provide the ICAO or IATA code for a reporting 
 
 With `-c` or `--config-file` you can specify a configuration file as described below.
 
+If you provide the `-f` or `--file` flag followed by a path to a json file, WXfetch will try to load the metar from this instead of from the internet. It expects the data to be formatted as described [here](https://avwx.docs.apiary.io/#reference/0/metar/get-metar-report).
+
 If there is any problem with the provided arguments WXfetch will print an error message and default to geoip.
 
 ## Configuration
