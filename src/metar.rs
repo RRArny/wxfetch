@@ -10,7 +10,7 @@
 // limitations under the License.
 // WxFetch - metar.rs
 
-use crate::{Config, Position};
+use crate::{position::Position, Config};
 use chrono::DateTime;
 use chrono::FixedOffset;
 use chrono::Utc;
@@ -145,7 +145,9 @@ fn colourise_wx_code(
         _ => Color::White,
     });
 
-    format!("{intensitystr}{descrstr}{codestr}{proximity}").magenta()
+    let proxstr = format!("{proximity}").white();
+
+    format!("{intensitystr}{descrstr}{codestr}{proxstr}").into()
 }
 
 fn colourise_qnh(qnh: i64, unit: PressureUnit, _config: &Config) -> ColoredString {
@@ -398,6 +400,8 @@ mod tests {
 
     use units::{AltitudeUnit, DistanceUnit};
 
+    use crate::position::LatLong;
+
     use super::*;
 
     #[test]
@@ -453,7 +457,7 @@ mod tests {
     #[test]
     fn test_is_exact_match_latlong() {
         let config = Config {
-            position: Position::LatLong(crate::LatLong(10.0, 10.0)),
+            position: Position::LatLong(LatLong(10.0, 10.0)),
             ..Default::default()
         };
         assert!(is_exact_match("EDRK", &config));
@@ -664,8 +668,8 @@ mod tests {
     #[test]
     fn test_colourise_clouds() {
         let config = Config::default();
-        let clouds = WxField::Clouds(Clouds::Sct, 5000);
-        let expected = colourise_clouds(&Clouds::Sct, 5000, &config);
+        let clouds = WxField::Clouds(Clouds::Sct, 50);
+        let expected = colourise_clouds(&Clouds::Sct, 50, &config);
         let actual = clouds.colourise(&config);
         assert_eq!(actual, expected);
     }
@@ -679,4 +683,82 @@ mod tests {
         let actual = timestamp.colourise(&config);
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn test_colourise_clouds_marginal() {
+        let config = Config::default();
+        let clouds = WxField::Clouds(Clouds::Ovc, 8);
+        let expected = colourise_clouds(&Clouds::Ovc, 8, &config);
+        let actual = clouds.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_colourise_clouds_bad() {
+        let config = Config::default();
+        let clouds = WxField::Clouds(Clouds::Brk, 5);
+        let expected = colourise_clouds(&Clouds::Brk, 5, &config);
+        let actual = clouds.colourise(&config);
+        assert_eq!(actual, expected);
+    }
+
+    // #[test]
+    // fn test_colourise_wxcode_sn() {
+    //     let config = Config::default();
+    //     let wxcode = WxField::WxCode(
+    //         WxCode::Sn,
+    //         WxCodeIntensity::Moderate,
+    //         WxCodeProximity::OnStation,
+    //         WxCodeDescription::None,
+    //     );
+    //     let expected_colour = Color::Red;
+    //     let actual = wxcode.colourise(&config);
+    //     assert_eq!(actual.fgcolor().unwrap(), expected_colour);
+    // }
+
+    // #[test]
+    // fn test_colourise_wxcode_gs() {
+    //     let config = Config::default();
+    //     let wxcode = WxField::WxCode(
+    //         WxCode::Gs,
+    //         WxCodeIntensity::Moderate,
+    //         WxCodeProximity::OnStation,
+    //         WxCodeDescription::None,
+    //     );
+    //     let expected_colour = Color::Yellow;
+    //     let actual = wxcode.colourise(&config);
+    //     assert_eq!(actual.fgcolor().unwrap(), expected_colour);
+    // }
+
+    // #[test]
+    // fn test_colourise_wxcode_po() {
+    //     let config = Config::default();
+    //     let wxcode = WxField::WxCode(
+    //         WxCode::Po,
+    //         WxCodeIntensity::Moderate,
+    //         WxCodeProximity::OnStation,
+    //         WxCodeDescription::None,
+    //     );
+    //     let expected_colour = Color::BrightRed;
+    //     let actual = wxcode.colourise(&config);
+    //     assert_eq!(actual.fgcolor().unwrap(), expected_colour);
+    // }
+
+    // #[test]
+    // fn test_colourise_wxcode_ic() {
+    //     let config = Config::default();
+    //     let wxcode = WxField::WxCode(
+    //         WxCode::Ic,
+    //         WxCodeIntensity::Moderate,
+    //         WxCodeProximity::OnStation,
+    //         WxCodeDescription::None,
+    //     );
+    //     let expected_colour = Color::White;
+    //     let actual = wxcode.colourise(&config);
+    //     assert_eq!(actual.fgcolor().unwrap(), expected_colour);
+    // }
+    // // WxCode::Gr | WxCode::Sn | WxCode::Up => Color::Red,
+    // WxCode::Gs => Color::Yellow,
+    // WxCode::Po => Color::BrightRed,
+    // _ => Color::White,
 }
