@@ -86,7 +86,6 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
         .unwrap_or(std::env::var("HOME").expect(msg) + "/.config/wxfetch/config.toml");
     let config_file = File::open(config_filepath.clone());
     if config_file.is_err() {
-        println!("Could not open config file at {config_filepath}. Proceeding with defaults...");
         return config;
     }
     let mut config_file = config_file.unwrap();

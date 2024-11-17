@@ -63,13 +63,13 @@ fn get_secrets(param: Option<String>) -> Secrets {
 async fn get_weather(config: &Config, secrets: &Secrets) -> Value {
     request_wx(config, secrets)
         .await
-        .expect("Weather request failed.")
+        .expect("Weather request failed. Check the API key for AvWx and your internet connection. Maybe try another position.")
 }
 
 fn get_weather_from_file(filename: String) -> Value {
-    let file = File::open(filename).expect("No such file: {filename}");
+    let file = File::open(filename).expect("No such file.");
     let reader = BufReader::new(file);
-    serde_json::from_reader(reader).expect("Failed to read data from file {filename}")
+    serde_json::from_reader(reader).expect("Failed to read data from file.")
 }
 
 #[tokio::main]
