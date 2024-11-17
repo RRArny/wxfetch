@@ -44,43 +44,47 @@ struct Args {
     config_file: Option<String>,
     #[arg(short, long = "file", value_name = "JSON Source File")]
     file: Option<String>,
+    #[arg(short, long, value_name = "AvWx API key")]
+    key: Option<String>,
 }
 
 struct Secrets {
     avwx_api_key: String,
 }
 
-fn get_secrets() -> Secrets {
-    let avwx_api_key = std::env::var("AVWX_API_KEY").expect("Could not load secret keys.");
+fn get_secrets(param: Option<String>) -> Secrets {
+    let avwx_api_key = if let Some(key) = param {
+        key
+    } else {
+        std::env::var("AVWX_API_KEY").expect("Could not load secret keys.")
+    };
     Secrets { avwx_api_key }
 }
 
-async fn get_weather(config: &Config, secrets: &Secrets) -> ColoredString {
+async fn get_weather(config: &Config, secrets: &Secrets) -> Metar {
     let json = request_wx(config, secrets)
         .await
         .expect("Weather request failed.");
-    let metar = Metar::from_json(&json, config).expect("Invalid weather data received...");
-    metar.colorise(config)
+    Metar::from_json(&json, config).expect("Invalid weather data received...")
 }
 
-fn get_weather_from_file(filename: String, config: &Config) -> ColoredString {
+fn get_weather_from_file(filename: String, config: &Config) -> Metar {
     let file = File::open(filename).expect("No such file: {filename}");
     let reader = BufReader::new(file);
     let json = serde_json::from_reader(reader).expect("Failed to read data from file {filename}");
-    let metar = Metar::from_json(&json, config).expect("Invalid weather data received...");
-
-    metar.colorise(config)
+    Metar::from_json(&json, config).expect("Invalid weather data received...")
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
-    let secrets = get_secrets();
+    let secrets = get_secrets(args.key.clone());
     let config = get_config(&secrets, &args).await;
-    let wx_string = match args.file {
+    let metar = match args.file {
         Some(filename) => get_weather_from_file(filename, &config),
         None => get_weather(&config, &secrets).await,
     };
+    let wx_string = metar.colorise(&config);
 
     println!("{wx_string}");
 }

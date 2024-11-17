@@ -57,7 +57,7 @@ If none of the options above are supplied the program defaults to geoip. Positio
   
 ## Providing API keys
 
-For wxfetch to work you will need a free account on https://avwx.rest/. Once you have created an account, go ahead and set the environment variable `AVWX_API_KEY` to your API key.
+For wxfetch to work you will need a free account on https://avwx.rest/. Once you have created an account, go ahead and set the environment variable `AVWX_API_KEY` to your API key. Alternatively, you can provide a key with the `-k` or `--key` flag.
 
 # Building from source
 
