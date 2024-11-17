@@ -56,25 +56,27 @@ impl Default for Config {
     }
 }
 
-pub async fn get_config(secrets: &Secrets, args: &Args) -> Config {
-    let mut config: Config = read_config_file(args.config_file.clone());
+impl Config {
+    pub async fn get_config(secrets: &Secrets, args: &Args) -> Config {
+        let mut config: Config = read_config_file(args.config_file.clone());
 
-    if let Some(icao) = args.airfield.clone() {
-        config.position = Position::Airfield(icao.clone());
-    } else if let Some(lat) = args.latitude {
-        if let Some(long) = args.longitude {
-            config.position = Position::LatLong(LatLong(lat, long));
+        if let Some(icao) = args.airfield.clone() {
+            config.position = Position::Airfield(icao.clone());
+        } else if let Some(lat) = args.latitude {
+            if let Some(long) = args.longitude {
+                config.position = Position::LatLong(LatLong(lat, long));
+            }
+            println!("Please provide both Latitude and Longitude. Defaulting to geoip...");
         }
-        println!("Please provide both Latitude and Longitude. Defaulting to geoip...");
-    }
 
-    if let Position::Airfield(ref icao) = config.position {
-        if !check_icao_code(icao, secrets).await {
-            println!("Invalid airfield {icao}. Defaulting to geoip...");
-            config.position = Position::GeoIP;
+        if let Position::Airfield(ref icao) = config.position {
+            if !check_icao_code(icao, secrets).await {
+                println!("Invalid airfield {icao}. Defaulting to geoip...");
+                config.position = Position::GeoIP;
+            }
         }
+        config
     }
-    config
 }
 
 fn read_config_file(config_filepath: Option<String>) -> Config {

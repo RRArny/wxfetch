@@ -15,7 +15,6 @@ use std::io::BufReader;
 
 use api::request_wx;
 use clap::Parser;
-use colored::ColoredString;
 
 mod metar;
 use metar::Metar;
@@ -25,7 +24,6 @@ mod position;
 mod api;
 
 mod config;
-use config::get_config;
 use config::Config;
 
 #[derive(Parser, Debug)]
@@ -79,7 +77,7 @@ fn get_weather_from_file(filename: String, config: &Config) -> Metar {
 async fn main() {
     let args = Args::parse();
     let secrets = get_secrets(args.key.clone());
-    let config = get_config(&secrets, &args).await;
+    let config = Config::get_config(&secrets, &args).await;
     let metar = match args.file {
         Some(filename) => get_weather_from_file(filename, &config),
         None => get_weather(&config, &secrets).await,
