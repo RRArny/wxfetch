@@ -25,6 +25,7 @@ mod api;
 
 mod config;
 use config::Config;
+use serde_json::Value;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -59,18 +60,16 @@ fn get_secrets(param: Option<String>) -> Secrets {
     Secrets { avwx_api_key }
 }
 
-async fn get_weather(config: &Config, secrets: &Secrets) -> Metar {
-    let json = request_wx(config, secrets)
+async fn get_weather(config: &Config, secrets: &Secrets) -> Value {
+    request_wx(config, secrets)
         .await
-        .expect("Weather request failed.");
-    Metar::from_json(&json, config).expect("Invalid weather data received...")
+        .expect("Weather request failed.")
 }
 
-fn get_weather_from_file(filename: String, config: &Config) -> Metar {
+fn get_weather_from_file(filename: String) -> Value {
     let file = File::open(filename).expect("No such file: {filename}");
     let reader = BufReader::new(file);
-    let json = serde_json::from_reader(reader).expect("Failed to read data from file {filename}");
-    Metar::from_json(&json, config).expect("Invalid weather data received...")
+    serde_json::from_reader(reader).expect("Failed to read data from file {filename}")
 }
 
 #[tokio::main]
@@ -78,11 +77,13 @@ async fn main() {
     let args = Args::parse();
     let secrets = get_secrets(args.key.clone());
     let config = Config::get_config(&secrets, &args).await;
-    let metar = match args.file {
-        Some(filename) => get_weather_from_file(filename, &config),
+    let json = match args.file {
+        Some(filename) => get_weather_from_file(filename),
         None => get_weather(&config, &secrets).await,
     };
-    let wx_string = metar.colorise(&config);
+    let wx_string = Metar::from_json(&json, &config)
+        .expect("Invalid weather data received...")
+        .colorise(&config);
 
     println!("{wx_string}");
 }
