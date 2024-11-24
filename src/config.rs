@@ -192,8 +192,8 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
 mod test {
     use super::*;
 
-    #[test]
-    fn test_read_config_file() {
+    #[tokio::test]
+    async fn test_read_config_file() {
         let expected = Config::default();
         let actual = read_config_file(Some("./config.toml".to_string()));
         assert_eq!(expected, actual);

@@ -52,11 +52,8 @@ struct Secrets {
 }
 
 fn get_secrets(param: Option<String>) -> Secrets {
-    let avwx_api_key = if let Some(key) = param {
-        key
-    } else {
-        std::env::var("AVWX_API_KEY").expect("Could not load secret keys.")
-    };
+    let avwx_api_key =
+        param.unwrap_or(std::env::var("AVWX_API_KEY").expect("Could not load secret key."));
     Secrets { avwx_api_key }
 }
 
@@ -82,7 +79,7 @@ async fn main() {
         None => get_weather(&config, &secrets).await,
     };
     let wx_string = Metar::from_json(&json, &config)
-        .expect("Invalid weather data received...")
+        .expect("Invalid weather data received.")
         .colorise(&config);
 
     println!("{wx_string}");

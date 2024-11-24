@@ -113,41 +113,41 @@ mod tests {
 
     use super::{clouds_from_str, get_clouds_from_json, Clouds};
 
-    #[test]
-    fn test_get_regex() {
+    #[tokio::test]
+    async fn test_get_regex() {
         let expected: &str = "SKC|FEW|SCT|BRK|OVC";
         let actual = Clouds::get_regex();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_clouds_from_str() {
+    #[tokio::test]
+    async fn test_clouds_from_str() {
         let expected = WxField::Clouds(Clouds::Skc, 0);
         let actual = clouds_from_str("SKC");
         assert_eq!(Some(expected), actual);
     }
 
-    #[test]
-    fn test_clouds_from_str_sct() {
+    #[tokio::test]
+    async fn test_clouds_from_str_sct() {
         let expected = WxField::Clouds(Clouds::Sct, 50);
         let actual = clouds_from_str("SCT50");
         assert_eq!(Some(expected), actual);
     }
 
-    #[test]
-    fn test_clouds_from_str_err() {
+    #[tokio::test]
+    async fn test_clouds_from_str_err() {
         let actual = clouds_from_str("OCC33");
         assert!(actual.is_none());
     }
 
-    #[test]
-    fn test_from_str_err() {
+    #[tokio::test]
+    async fn test_from_str_err() {
         let str = "CLS9999";
         assert!(Clouds::from_str(str).is_err());
     }
 
-    #[test]
-    fn test_get_clouds() {
+    #[tokio::test]
+    async fn test_get_clouds() {
         let json: Value = Value::from_str(
             "{\"clouds\":[{\"repr\": \"SCT050\"},{\"repr\": \"BRK100\"},{\"repr\": \"OVC200\"}]}",
         )

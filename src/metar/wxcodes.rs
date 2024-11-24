@@ -347,29 +347,29 @@ mod tests {
     use super::{get_wxcodes_from_json, WxCode, WxCodeIntensity};
     use crate::metar::{wxcodes::WxCodeDescription, WxCodeProximity, WxField};
 
-    #[test]
-    fn test_get_regex() {
+    #[tokio::test]
+    async fn test_get_regex() {
         let expected: &str = "RA|DZ|GR|GS|IC|PL|SG|SN|UP|BR|DU|FG|FU|HZ|PY|SA|VA|DS|FC|PO|SQ|SS";
         let actual = WxCode::get_regex();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_get_wxcodes_empty() {
+    #[tokio::test]
+    async fn test_get_wxcodes_empty() {
         let json: Value = Value::from_str("{\"wx_codes\":[]}").unwrap();
         let actual = get_wxcodes_from_json(&json);
         assert!(actual.is_empty());
     }
 
-    #[test]
-    fn test_get_wxcodes_no_field() {
+    #[tokio::test]
+    async fn test_get_wxcodes_no_field() {
         let json: Value = Value::from_str("{}").unwrap();
         let actual = get_wxcodes_from_json(&json);
         assert!(actual.is_empty());
     }
 
-    #[test]
-    fn test_get_wxcodes_one() {
+    #[tokio::test]
+    async fn test_get_wxcodes_one() {
         let expected: Vec<WxField> = vec![WxField::WxCode(
             WxCode::Ra,
             WxCodeIntensity::Light,
@@ -381,267 +381,268 @@ mod tests {
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_ra() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_ra() {
         let expected = WxCode::Ra;
         let actual = WxCode::from_str("RA").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_dz() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_dz() {
         let expected = WxCode::Dz;
         let actual = WxCode::from_str("DZ").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_gr() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_gr() {
         let expected = WxCode::Gr;
         let actual = WxCode::from_str("GR").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_gs() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_gs() {
         let expected = WxCode::Gs;
         let actual = WxCode::from_str("GS").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_ic() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_ic() {
         let expected = WxCode::Ic;
         let actual = WxCode::from_str("IC").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_pl() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_pl() {
         let expected = WxCode::Pl;
         let actual = WxCode::from_str("PL").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_sg() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_sg() {
         let expected = WxCode::Sg;
         let actual = WxCode::from_str("SG").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_sn() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_sn() {
         let expected = WxCode::Sn;
         let actual = WxCode::from_str("SN").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_up() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_up() {
         let expected = WxCode::Up;
         let actual = WxCode::from_str("UP").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_br() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_br() {
         let expected = WxCode::Br;
         let actual = WxCode::from_str("BR").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_du() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_du() {
         let expected = WxCode::Du;
         let actual = WxCode::from_str("DU").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_fg() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_fg() {
         let expected = WxCode::Fg;
         let actual = WxCode::from_str("FG").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_fu() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_fu() {
         let expected = WxCode::Fu;
         let actual = WxCode::from_str("FU").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_hz() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_hz() {
         let expected = WxCode::Hz;
         let actual = WxCode::from_str("HZ").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_py() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_py() {
         let expected = WxCode::Py;
         let actual = WxCode::from_str("PY").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_sa() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_sa() {
         let expected = WxCode::Sa;
         let actual = WxCode::from_str("SA").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_va() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_va() {
         let expected = WxCode::Va;
         let actual = WxCode::from_str("VA").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_ds() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_ds() {
         let expected = WxCode::Ds;
         let actual = WxCode::from_str("DS").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_fc() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_fc() {
         let expected = WxCode::Fc;
         let actual = WxCode::from_str("FC").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_po() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_po() {
         let expected = WxCode::Po;
         let actual = WxCode::from_str("PO").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_sq() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_sq() {
         let expected = WxCode::Sq;
         let actual = WxCode::from_str("SQ").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_ss() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_ss() {
         let expected = WxCode::Ss;
         let actual = WxCode::from_str("SS").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_wxcode_from_str_invalid() {
+    #[tokio::test]
+    async fn test_wxcode_from_str_invalid() {
         assert!(WxCode::from_str("INVALID").is_err());
     }
 
-    #[test]
-    fn test_prox_from_str_dist() {
+    #[tokio::test]
+    async fn test_prox_from_str_dist() {
         let expected = WxCodeProximity::Distant;
         let actual = WxCodeProximity::from_str("DSNT").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_prox_from_str_vic() {
+    #[tokio::test]
+    async fn test_prox_from_str_vic() {
         let expected = WxCodeProximity::Vicinity;
         let actual = WxCodeProximity::from_str("VC").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_prox_from_str_invalid() {
+    #[tokio::test]
+    async fn test_prox_from_str_invalid() {
         assert!(WxCodeProximity::from_str("SOMEWHEREELSE").is_err());
     }
 
-    #[test]
-    fn test_desc_from_str_ts() {
+    #[tokio::test]
+    async fn test_desc_from_str_ts() {
         let expected = WxCodeDescription::Ts;
         let actual = WxCodeDescription::from_str("TS").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_desc_from_str_bc() {
+    #[tokio::test]
+    async fn test_desc_from_str_bc() {
         let expected = WxCodeDescription::Bc;
         let actual = WxCodeDescription::from_str("BC").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_desc_from_str_bl() {
+    #[tokio::test]
+    async fn test_desc_from_str_bl() {
         let expected = WxCodeDescription::Bl;
         let actual = WxCodeDescription::from_str("BL").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_desc_from_str_dr() {
+    #[tokio::test]
+    async fn test_desc_from_str_dr() {
         let expected = WxCodeDescription::Dr;
         let actual = WxCodeDescription::from_str("DR").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_desc_from_str_fz() {
+    #[tokio::test]
+    async fn test_desc_from_str_fz() {
         let expected = WxCodeDescription::Fz;
         let actual = WxCodeDescription::from_str("FZ").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_desc_from_str_mi() {
+    #[tokio::test]
+    async fn test_desc_from_str_mi() {
         let expected = WxCodeDescription::Mi;
         let actual = WxCodeDescription::from_str("MI").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_desc_from_str_pr() {
+    #[tokio::test]
+    async fn test_desc_from_str_pr() {
         let expected = WxCodeDescription::Pr;
         let actual = WxCodeDescription::from_str("PR").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_desc_from_str_sh() {
+    #[tokio::test]
+    async fn test_desc_from_str_sh() {
         let expected = WxCodeDescription::Sh;
         let actual = WxCodeDescription::from_str("SH").unwrap();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_desc_from_str_invalid() {
+    #[tokio::test]
+    async fn test_desc_from_str_invalid() {
         assert!(WxCodeDescription::from_str("SOME").is_err());
     }
 
-    #[test]
-    fn test_intens_from_str_invalid() {
+    #[tokio::test]
+    async fn test_intens_from_str_invalid() {
         assert!(WxCodeIntensity::from_str("#").is_err())
     }
 
-    #[test]
-    fn test_intens_display_light() {
+    #[tokio::test]
+    async fn test_intens_display_light() {
         let code = WxCodeIntensity::Light;
         let expected = "-";
         let actual = code.to_string();
         assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn test_intens_display_moderate() {
+    #[tokio::test]
+    async fn test_intens_display_moderate() {
         let code = WxCodeIntensity::Moderate;
         let expected = "";
         let actual = code.to_string();
         assert_eq!(expected, actual);
     }
-    #[test]
-    fn test_intens_display_heavy() {
+
+    #[tokio::test]
+    async fn test_intens_display_heavy() {
         let code = WxCodeIntensity::Heavy;
         let expected = "+";
         let actual = code.to_string();

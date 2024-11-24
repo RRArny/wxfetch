@@ -10,6 +10,7 @@
 // limitations under the License.
 // WxFetch - api.rs
 
+use log::error;
 use reqwest::{Client, Error, Response};
 use serde_json::Value;
 
@@ -19,9 +20,13 @@ use crate::{Config, Secrets};
 pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     let position = config.position.get_location_str().await;
     let resp = send_api_call(position, secrets).await.ok()?;
+    let status = resp.status().as_u16();
 
-    if resp.status().as_u16() == 200 {
+    if status == 200 {
         resp.json().await.ok()
+    } else if status == 401 {
+        error!("Weather request failed. Provide a valid AvWx API key.");
+        None
     } else if let Some(nearest_station_code) = get_nearest_station(config, secrets).await {
         send_api_call(nearest_station_code, secrets)
             .await

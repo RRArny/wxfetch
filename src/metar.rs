@@ -404,8 +404,8 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_metar_from_json_icao() {
+    #[tokio::test]
+    async fn test_metar_from_json_icao() {
         let json: Value = Value::from_str("{\"station\":\"EDRK\"}").unwrap();
         let config = Config {
             position: Position::Airfield("EDRK".to_string()),
@@ -415,8 +415,8 @@ mod tests {
         assert!(metar.is_some_and(|m| m.icao_code == "EDRK"));
     }
 
-    #[test]
-    fn test_metar_from_json_time() {
+    #[tokio::test]
+    async fn test_metar_from_json_time() {
         let json: Value = Value::from_str("{\"time\":{\"dt\":\"2024-06-21T05:50:00Z\"}}").unwrap();
         let config = Config {
             position: Position::Airfield("EDRK".to_string()),
@@ -427,8 +427,8 @@ mod tests {
         assert!(metar.is_some_and(|m| m.fields.contains(&WxField::TimeStamp(expected))));
     }
 
-    #[test]
-    fn test_is_exact_match_positive() {
+    #[tokio::test]
+    async fn test_is_exact_match_positive() {
         let config = Config {
             position: Position::Airfield("EDDK".to_string()),
             ..Default::default()
@@ -436,8 +436,8 @@ mod tests {
         assert!(is_exact_match("EDDK", &config));
     }
 
-    #[test]
-    fn test_is_exact_match_negative() {
+    #[tokio::test]
+    async fn test_is_exact_match_negative() {
         let config = Config {
             position: Position::Airfield("EDDK".to_string()),
             ..Default::default()
@@ -445,8 +445,8 @@ mod tests {
         assert!(!is_exact_match("EDRK", &config));
     }
 
-    #[test]
-    fn test_is_exact_match_geoip() {
+    #[tokio::test]
+    async fn test_is_exact_match_geoip() {
         let config = Config {
             position: Position::GeoIP,
             ..Default::default()
@@ -454,8 +454,8 @@ mod tests {
         assert!(is_exact_match("EDRK", &config));
     }
 
-    #[test]
-    fn test_is_exact_match_latlong() {
+    #[tokio::test]
+    async fn test_is_exact_match_latlong() {
         let config = Config {
             position: Position::LatLong(LatLong(10.0, 10.0)),
             ..Default::default()
@@ -463,29 +463,29 @@ mod tests {
         assert!(is_exact_match("EDRK", &config));
     }
 
-    #[test]
-    fn test_colourise_visibility_good() {
+    #[tokio::test]
+    async fn test_colourise_visibility_good() {
         let config = Config::default();
         let vis_str: ColoredString = colourise_visibility(9999, &config);
         assert_eq!(vis_str.fgcolor(), Some(Color::Green));
     }
 
-    #[test]
-    fn test_colourise_visibility_medium() {
+    #[tokio::test]
+    async fn test_colourise_visibility_medium() {
         let config = Config::default();
         let vis_str: ColoredString = colourise_visibility(2000, &config);
         assert_eq!(vis_str.fgcolor(), Some(Color::Yellow));
     }
 
-    #[test]
-    fn test_colourise_visibility_bad() {
+    #[tokio::test]
+    async fn test_colourise_visibility_bad() {
         let config = Config::default();
         let vis_str: ColoredString = colourise_visibility(1000, &config);
         assert_eq!(vis_str.fgcolor(), Some(Color::Red));
     }
 
-    #[test]
-    fn test_get_winds() {
+    #[tokio::test]
+    async fn test_get_winds() {
         let json: Value = Value::from_str("{\"wind_direction\": {\"value\":100}, \"wind_speed\":{\"value\":10}, \"wind_gust\":{\"value\":15}}").unwrap();
         let expected = WxField::Wind {
             direction: 100,
@@ -497,8 +497,8 @@ mod tests {
         assert!(actual.is_some_and(|w| w == expected));
     }
 
-    #[test]
-    fn test_get_winds_no_gust() {
+    #[tokio::test]
+    async fn test_get_winds_no_gust() {
         let json: Value =
             Value::from_str("{\"wind_direction\": {\"value\":100}, \"wind_speed\":{\"value\":10}}")
                 .unwrap();
@@ -512,16 +512,16 @@ mod tests {
         assert!(actual.is_some_and(|w| w == expected));
     }
 
-    #[test]
-    fn test_get_qnh() {
+    #[tokio::test]
+    async fn test_get_qnh() {
         let json: Value = Value::from_str("{\"altimeter\":{\"value\": 1013}}").unwrap();
         let expected = WxField::Qnh(1013, PressureUnit::Hpa);
         let actual = get_qnh(&json, Units::default());
         assert!(actual.is_some_and(|q| q == expected));
     }
 
-    #[test]
-    fn test_get_qnh_inhg() {
+    #[tokio::test]
+    async fn test_get_qnh_inhg() {
         let json: Value = Value::from_str("{\"altimeter\":{\"value\": 29.92}}").unwrap();
         let expected = WxField::Qnh(2992, PressureUnit::Inhg);
         let units = Units {
@@ -536,16 +536,16 @@ mod tests {
         assert!(actual.is_some_and(|q| q == expected));
     }
 
-    #[test]
-    fn test_get_remarks() {
+    #[tokio::test]
+    async fn test_get_remarks() {
         let json: Value = Value::from_str("{\"remarks\":\"RWY UNAVAILABLE\"}").unwrap();
         let expected = "RWY UNAVAILABLE".to_string();
         let actual = get_remarks(&json);
         assert!(actual.is_some_and(|r| r == WxField::Remarks(expected)));
     }
 
-    #[test]
-    fn test_get_temp() {
+    #[tokio::test]
+    async fn test_get_temp() {
         let json: Value =
             Value::from_str("{\"temperature\":{\"value\": 10}, \"dewpoint\":{\"value\": 9}}")
                 .unwrap();
@@ -558,8 +558,8 @@ mod tests {
         assert!(actual.is_some_and(|t| t == expected));
     }
 
-    #[test]
-    fn test_get_wind_var() {
+    #[tokio::test]
+    async fn test_get_wind_var() {
         let json: Value =
             Value::from_str("{\"wind_variable_direction\":[{\"value\" : 80},{\"value\" : 150}]}")
                 .unwrap();
@@ -571,16 +571,16 @@ mod tests {
         assert!(actual.is_some_and(|v| v == expected));
     }
 
-    #[test]
-    fn test_get_visibility() {
+    #[tokio::test]
+    async fn test_get_visibility() {
         let json: Value = Value::from_str("{\"visibility\":{\"value\":9999}}").unwrap();
         let expected: WxField = WxField::Visibility(9999);
         let actual = get_visibility(&json, Units::default());
         assert!(actual.is_some_and(|v| v == expected));
     }
 
-    #[test]
-    fn test_colourise_vis() {
+    #[tokio::test]
+    async fn test_colourise_vis() {
         let config = Config::default();
         let vis = WxField::Visibility(9999);
         let expected = colourise_visibility(9999, &config);
@@ -588,8 +588,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_wind() {
+    #[tokio::test]
+    async fn test_colourise_wind() {
         let config = Config::default();
         let wind = WxField::Wind {
             direction: 0,
@@ -602,8 +602,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_wind_var() {
+    #[tokio::test]
+    async fn test_colourise_wind_var() {
         let config = Config::default();
         let wind = WxField::WindVariability {
             low_dir: 0,
@@ -614,8 +614,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_temp() {
+    #[tokio::test]
+    async fn test_colourise_temp() {
         let config = Config::default();
         let temp = WxField::Temperature {
             temp: 20,
@@ -627,8 +627,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_qnh() {
+    #[tokio::test]
+    async fn test_colourise_qnh() {
         let config = Config::default();
         let qnh = WxField::Qnh(1013, PressureUnit::Hpa);
         let expected = colourise_qnh(1013, PressureUnit::Hpa, &config);
@@ -636,8 +636,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_wxcode() {
+    #[tokio::test]
+    async fn test_colourise_wxcode() {
         let config = Config::default();
         let wxcode = WxField::WxCode(
             WxCode::Ra,
@@ -656,8 +656,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_rmk() {
+    #[tokio::test]
+    async fn test_colourise_rmk() {
         let config = Config::default();
         let rmk = WxField::Remarks("NONE".to_string());
         let expected = "NONE".black().on_white();
@@ -665,8 +665,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_clouds() {
+    #[tokio::test]
+    async fn test_colourise_clouds() {
         let config = Config::default();
         let clouds = WxField::Clouds(Clouds::Sct, 50);
         let expected = colourise_clouds(&Clouds::Sct, 50, &config);
@@ -674,8 +674,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_timestamp() {
+    #[tokio::test]
+    async fn test_colourise_timestamp() {
         let config = Config::default();
         let fixed_offset = Utc::now().fixed_offset();
         let timestamp = WxField::TimeStamp(fixed_offset);
@@ -684,8 +684,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_clouds_marginal() {
+    #[tokio::test]
+    async fn test_colourise_clouds_marginal() {
         let config = Config::default();
         let clouds = WxField::Clouds(Clouds::Ovc, 8);
         let expected = colourise_clouds(&Clouds::Ovc, 8, &config);
@@ -693,8 +693,8 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    #[test]
-    fn test_colourise_clouds_bad() {
+    #[tokio::test]
+    async fn test_colourise_clouds_bad() {
         let config = Config::default();
         let clouds = WxField::Clouds(Clouds::Brk, 5);
         let expected = colourise_clouds(&Clouds::Brk, 5, &config);

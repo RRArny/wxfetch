@@ -61,8 +61,8 @@ async fn get_geoip() -> Option<LatLong> {
 mod test {
     use super::*;
 
-    #[test]
-    fn test_display_latlong() {
+    #[tokio::test]
+    async fn test_display_latlong() {
         let latlon = LatLong(51.4, 8.5);
         let expected = "51.4,8.5";
         let actual = latlon.to_string();
