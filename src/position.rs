@@ -68,4 +68,12 @@ mod test {
         let actual = latlon.to_string();
         assert_eq!(expected, actual);
     }
+
+    #[tokio::test]
+    async fn test_display_latlong_neg() {
+        let latlon = LatLong(-51.4, -8.5);
+        let expected = "-51.4,-8.5";
+        let actual = latlon.to_string();
+        assert_eq!(expected, actual);
+    }
 }
