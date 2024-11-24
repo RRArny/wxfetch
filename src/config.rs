@@ -94,10 +94,11 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
     let contents = contents.parse::<Table>().expect(msg);
 
     if contents.contains_key("position") {
-        if let Some(airfield) = contents["position"].get("airfield").and_then(Value::as_str) {
+        let position = &contents["position"];
+        if let Some(airfield) = position.get("airfield").and_then(Value::as_str) {
             config.position = Position::Airfield(airfield.to_string());
         }
-        if let Some(lat) = contents["position"].get("lat").and_then(Value::as_float) {
+        if let Some(lat) = position.get("lat").and_then(Value::as_float) {
             if let Some(lon) = contents["position"].get("lon").and_then(Value::as_float) {
                 config.position = Position::LatLong(LatLong(lat, lon));
             }
@@ -105,16 +106,11 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
     }
 
     if contents.contains_key("clouds") {
-        if let Some(minimum) = contents["clouds"]
-            .get("cloud_minimum")
-            .and_then(Value::as_integer)
-        {
+        let clouds = &contents["clouds"];
+        if let Some(minimum) = clouds.get("cloud_minimum").and_then(Value::as_integer) {
             config.cloud_minimum = minimum;
         }
-        if let Some(marginal) = contents["clouds"]
-            .get("cloud_marginal")
-            .and_then(Value::as_integer)
-        {
+        if let Some(marginal) = clouds.get("cloud_marginal").and_then(Value::as_integer) {
             config.cloud_marginal = marginal;
         }
     }
@@ -135,49 +131,37 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
     }
 
     if contents.contains_key("wind") {
-        if let Some(var_maximum) = contents["wind"]
-            .get("wind_var_maximum")
-            .and_then(Value::as_integer)
-        {
+        let wind = &contents["wind"];
+        if let Some(var_maximum) = wind.get("wind_var_maximum").and_then(Value::as_integer) {
             config.wind_var_maximum = var_maximum;
         }
-        if let Some(maximum) = contents["wind"]
-            .get("wind_maximum")
-            .and_then(Value::as_integer)
-        {
+        if let Some(maximum) = wind.get("wind_maximum").and_then(Value::as_integer) {
             config.wind_maximum = maximum;
         }
-        if let Some(gust_maximum) = contents["wind"]
-            .get("gust_maximum")
-            .and_then(Value::as_integer)
-        {
+        if let Some(gust_maximum) = wind.get("gust_maximum").and_then(Value::as_integer) {
             config.gust_maximum = gust_maximum;
         }
     }
 
     if contents.contains_key("age") {
-        if let Some(maximum) = contents["age"]
-            .get("age_maximum")
-            .and_then(Value::as_integer)
-        {
+        let age = &contents["age"];
+        if let Some(maximum) = age.get("age_maximum").and_then(Value::as_integer) {
             config.age_maximum = TimeDelta::seconds(maximum);
         }
-        if let Some(marginal) = contents["age"]
-            .get("age_marginal")
-            .and_then(Value::as_integer)
-        {
+        if let Some(marginal) = age.get("age_marginal").and_then(Value::as_integer) {
             config.age_marginal = TimeDelta::seconds(marginal);
         }
     }
 
     if contents.contains_key("visibility") {
-        if let Some(minimum) = contents["visibility"]
+        let visibility = &contents["visibility"];
+        if let Some(minimum) = visibility
             .get("visibility_minimum")
             .and_then(Value::as_integer)
         {
             config.visibility_minimum = minimum;
         }
-        if let Some(marginal) = contents["visibility"]
+        if let Some(marginal) = visibility
             .get("visibility_marginal")
             .and_then(Value::as_integer)
         {

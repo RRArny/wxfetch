@@ -84,3 +84,29 @@ async fn main() {
 
     println!("{wx_string}");
 }
+
+#[cfg(test)]
+mod test {
+    use std::fs;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_weather_from_file() {
+        for entry in fs::read_dir("tests/testdata").unwrap() {
+            let path = entry.unwrap().path();
+            let result = get_weather_from_file(path.into_os_string().into_string().unwrap());
+            assert!(result.is_object());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_weather_from_file_metar() {
+        for entry in fs::read_dir("tests/testdata").unwrap() {
+            let path = entry.unwrap().path();
+            let json = get_weather_from_file(path.into_os_string().into_string().unwrap());
+            let metar = Metar::from_json(&json, &Config::default());
+            assert!(metar.is_some());
+        }
+    }
+}

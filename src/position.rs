@@ -76,4 +76,20 @@ mod test {
         let actual = latlon.to_string();
         assert_eq!(expected, actual);
     }
+
+    #[tokio::test]
+    async fn test_get_location_str_latlong() {
+        let latlon = Position::LatLong(LatLong(51.4, 8.5));
+        let expected = "51.4,8.5";
+        let actual = latlon.get_location_str().await;
+        assert_eq!(expected, actual);
+    }
+
+    #[tokio::test]
+    async fn test_get_location_str_airfield() {
+        let airport = Position::Airfield("EDRK".to_string());
+        let expected = "EDRK";
+        let actual = airport.get_location_str().await;
+        assert_eq!(expected, actual);
+    }
 }
