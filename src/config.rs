@@ -116,13 +116,11 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
     }
 
     if contents.contains_key("temperature") {
-        if let Some(minimum) = contents["temperature"]
-            .get("temp_minimum")
-            .and_then(Value::as_integer)
-        {
+        let temperature = &contents["temperature"];
+        if let Some(minimum) = temperature.get("temp_minimum").and_then(Value::as_integer) {
             config.temp_minimum = minimum;
         }
-        if let Some(spread_minimum) = contents["temperature"]
+        if let Some(spread_minimum) = temperature
             .get("spread_minimum")
             .and_then(Value::as_integer)
         {

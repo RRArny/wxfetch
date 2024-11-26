@@ -46,8 +46,7 @@ async fn get_geoip() -> Option<LatLong> {
     let response = reqwest::get("http://ip-api.com/json/").await.ok()?;
     let json: Value = response.json().await.ok()?;
 
-    let success = json.get("status")?;
-    if success != "success" {
+    if json.get("status")? != "success" {
         return None;
     }
 
