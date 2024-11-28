@@ -1,6 +1,6 @@
 # WXfetch
 
-![CI](https://github.com/rrarny/wxfetch/actions/workflows/rust.yml/badge.svg)
+![CI](https://github.com/rrarny/wxfetch/actions/workflows/rust.yml/badge.svg) ![Crates.io](https://img.shields.io/crates/v/wxfetch) ![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
 
 Console utility for accessing aviation weather information from the command line.
 
