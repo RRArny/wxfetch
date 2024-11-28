@@ -1,5 +1,7 @@
 # WXfetch
 
+![CI](https://github.com/rrarny/wxfetch/actions/workflows/rust.yml/badge.svg)
+
 Console utility for accessing aviation weather information from the command line.
 
 ## Parameters
