@@ -24,3 +24,8 @@ jobs:
       run: cargo clippy -- -W clippy::pedantic
     - name: Tarpaulin Code Coverage
       run: cargo install cargo-tarpaulin && cargo tarpaulin --out json --output-dir code-coverage/
+    - name: Upload Code Coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: tarpaulin-report.json
+        path: code-coverage/tarpaulin-report.json
