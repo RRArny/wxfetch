@@ -22,3 +22,5 @@ jobs:
       run: cargo test --verbose
     - name: Run Clippy
       run: cargo clippy -- -W clippy::pedantic
+    - name: Tarpaulin Code Coverage
+      run: cargo tarpaulin --out json --output-dir code-coverage/
