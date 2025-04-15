@@ -10,7 +10,7 @@
 // limitations under the License.
 // WxFetch - metar.rs
 
-use crate::{position::Position, Config};
+use crate::{Config, position::Position};
 use chrono::DateTime;
 use chrono::FixedOffset;
 use chrono::Utc;
@@ -22,10 +22,10 @@ use std::ops::Sub;
 mod clouds;
 mod units;
 mod wxcodes;
-use crate::metar::clouds::{get_clouds_from_json, Clouds};
+use crate::metar::clouds::{Clouds, get_clouds_from_json};
 use crate::metar::units::{PressureUnit, SpeedUnit, TemperatureUnit, Units};
 use crate::metar::wxcodes::{
-    get_wxcodes_from_json, WxCode, WxCodeDescription, WxCodeIntensity, WxCodeProximity,
+    WxCode, WxCodeDescription, WxCodeIntensity, WxCodeProximity, get_wxcodes_from_json,
 };
 
 /// Represents a METAR report.
@@ -467,21 +467,21 @@ mod tests {
     async fn test_colourise_visibility_good() {
         let config = Config::default();
         let vis_str: ColoredString = colourise_visibility(9999, &config);
-        assert_eq!(vis_str.fgcolor(), Some(Color::Green));
+        assert_eq!(vis_str.fgcolor, Some(Color::Green));
     }
 
     #[tokio::test]
     async fn test_colourise_visibility_medium() {
         let config = Config::default();
         let vis_str: ColoredString = colourise_visibility(2000, &config);
-        assert_eq!(vis_str.fgcolor(), Some(Color::Yellow));
+        assert_eq!(vis_str.fgcolor, Some(Color::Yellow));
     }
 
     #[tokio::test]
     async fn test_colourise_visibility_bad() {
         let config = Config::default();
         let vis_str: ColoredString = colourise_visibility(1000, &config);
-        assert_eq!(vis_str.fgcolor(), Some(Color::Red));
+        assert_eq!(vis_str.fgcolor, Some(Color::Red));
     }
 
     #[tokio::test]
