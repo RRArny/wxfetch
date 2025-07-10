@@ -19,6 +19,9 @@ use clap::Parser;
 mod metar;
 use metar::Metar;
 
+mod taf;
+use taf::Taf;
+
 mod position;
 
 mod api;
@@ -45,6 +48,8 @@ struct Args {
     file: Option<String>,
     #[arg(short, long, value_name = "AvWx API key")]
     key: Option<String>,
+    #[arg(long, value_name = "Print Terminal Aerodrome Forecast")]
+    taf: bool,
 }
 
 struct Secrets {
@@ -78,11 +83,17 @@ async fn main() {
         Some(filename) => get_weather_from_file(filename),
         None => get_weather(&config, &secrets).await,
     };
-    let wx_string = Metar::from_json(&json, &config)
-        .expect("Invalid weather data received.")
-        .colorise(&config);
 
-    println!("{wx_string}");
+    if config.print_taf {
+        let taf_string = Taf::from_json(&json, &config).expect("").colourise(&config);
+        println!("{taf_string}");
+    } else {
+        let wx_string = Metar::from_json(&json, &config)
+            .expect("Invalid weather data received.")
+            .colourise(&config);
+
+        println!("{wx_string}");
+    }
 }
 
 #[cfg(test)]

@@ -10,14 +10,10 @@
 // limitations under the License.
 // WxFetch - metar.rs
 
-use crate::{Config, position::Position};
-use chrono::DateTime;
-use chrono::FixedOffset;
-use chrono::Utc;
+use chrono::{DateTime, FixedOffset, Utc};
 use colored::{Color, ColoredString, Colorize};
 use serde_json::Value;
-use std::ops::Mul;
-use std::ops::Sub;
+use std::ops::{Mul, Sub};
 
 mod clouds;
 mod units;
@@ -27,6 +23,7 @@ use crate::metar::units::{PressureUnit, SpeedUnit, TemperatureUnit, Units};
 use crate::metar::wxcodes::{
     WxCode, WxCodeDescription, WxCodeIntensity, WxCodeProximity, get_wxcodes_from_json,
 };
+use crate::{Config, position::Position};
 
 /// Represents a METAR report.
 pub struct Metar {
@@ -302,7 +299,7 @@ impl Metar {
         })
     }
 
-    pub fn colorise(self, config: &Config) -> ColoredString {
+    pub fn colourise(self, config: &Config) -> ColoredString {
         let mut coloured_string: ColoredString = if self.exact_match {
             self.icao_code.bright_white().on_blue()
         } else {
@@ -398,6 +395,7 @@ fn is_exact_match(station: &str, config: &Config) -> bool {
 mod tests {
     use std::str::FromStr;
 
+    use rstest::rstest;
     use units::{AltitudeUnit, DistanceUnit};
 
     use crate::position::LatLong;
@@ -512,7 +510,7 @@ mod tests {
         assert!(actual.is_some_and(|w| w == expected));
     }
 
-    #[tokio::test]
+    #[rstest]
     async fn test_get_qnh() {
         let json: Value = Value::from_str("{\"altimeter\":{\"value\": 1013}}").unwrap();
         let expected = WxField::Qnh(1013, PressureUnit::Hpa);

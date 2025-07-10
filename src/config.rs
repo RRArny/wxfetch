@@ -16,9 +16,9 @@ use chrono::TimeDelta;
 use toml::{Table, Value};
 
 use crate::{
+    Args, Secrets,
     api::check_icao_code,
     position::{LatLong, Position},
-    Args, Secrets,
 };
 
 #[derive(PartialEq, Debug)]
@@ -35,6 +35,7 @@ pub struct Config {
     pub age_marginal: TimeDelta,
     pub visibility_minimum: i64,
     pub visibility_marginal: i64,
+    pub print_taf: bool,
 }
 
 impl Default for Config {
@@ -52,6 +53,7 @@ impl Default for Config {
             age_marginal: TimeDelta::hours(1),
             visibility_minimum: 1500,
             visibility_marginal: 5000,
+            print_taf: false,
         }
     }
 }
@@ -59,6 +61,10 @@ impl Default for Config {
 impl Config {
     pub async fn get_config(secrets: &Secrets, args: &Args) -> Config {
         let mut config: Config = read_config_file(args.config_file.clone());
+
+        if args.taf {
+            config.print_taf = true;
+        }
 
         if let Some(icao) = args.airfield.clone() {
             config.position = Position::Airfield(icao.clone());
