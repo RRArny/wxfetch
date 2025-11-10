@@ -1,0 +1,21 @@
+{
+    "station": "EDDF",
+    "time": {"dt": "2024-06-21T12:00:00Z"},
+    "start_time": {"dt": "2024-06-21T13:00:00Z"},
+    "end_time": {"dt": "2024-06-22T12:00:00Z"},
+    "forecast": [
+        {
+            "start_time": {"dt": "2024-06-21T13:00:00Z"},
+            "end_time": {"dt": "2024-06-21T18:00:00Z"},
+            "wind_direction": {"value": 270},
+            "wind_speed": {"value": 12}
+        },
+        {
+            "type": "PROB",
+            "probability": {"value": 30},
+            "start_time": {"dt": "2024-06-21T18:00:00Z"},
+            "end_time": {"dt": "2024-06-21T22:00:00Z"},
+            "visibility": {"value": 2000}
+        }
+    ]
+}

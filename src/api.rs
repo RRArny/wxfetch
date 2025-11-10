@@ -19,7 +19,16 @@ use crate::{Config, Secrets};
 /// Given a Config and Secrets, sends a request to fetch a METAR and returns the report in JSON format wrapped in Some if successful, None otherwise.
 pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     let position = config.position.get_location_str().await;
-    let resp = send_api_call(position, secrets).await.ok()?;
+    let endpoint = if config.print_taf { "taf" } else { "metar" };
+    let options = if config.print_taf {
+        "info,summary"
+    } else {
+        "info"
+    };
+
+    let resp = send_api_call(position, endpoint, options, secrets)
+        .await
+        .ok()?;
     let status = resp.status().as_u16();
 
     if status == 200 {
@@ -28,7 +37,7 @@ pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
         error!("Weather request failed. Provide a valid AvWx API key.");
         None
     } else if let Some(nearest_station_code) = get_nearest_station(config, secrets).await {
-        send_api_call(nearest_station_code, secrets)
+        send_api_call(nearest_station_code, endpoint, options, secrets)
             .await
             .ok()?
             .json::<Value>()
@@ -41,8 +50,15 @@ pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
 }
 
 /// Given a properly formattet position string and Secrets, requests METAR from avwx and wraps the Response in a Result.
-async fn send_api_call(position: String, secrets: &Secrets) -> Result<Response, Error> {
-    let uri = format!("https://avwx.rest/api/metar/{position}?onfail=nearest&options=info");
+async fn send_api_call(
+    position: String,
+    endpoint: &str,
+    options: &str,
+    secrets: &Secrets,
+) -> Result<Response, Error> {
+    let uri = format!(
+        "https://avwx.rest/api/{endpoint}/{position}?onfail=nearest&options={options}"
+    );
     let resp: Response = Client::new()
         .get(uri)
         .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))

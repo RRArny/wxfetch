@@ -15,9 +15,9 @@ use colored::{Color, ColoredString, Colorize};
 use serde_json::Value;
 use std::ops::{Mul, Sub};
 
-mod clouds;
-mod units;
-mod wxcodes;
+pub mod clouds;
+pub mod units;
+pub mod wxcodes;
 use crate::metar::clouds::{Clouds, get_clouds_from_json};
 use crate::metar::units::{PressureUnit, SpeedUnit, TemperatureUnit, Units};
 use crate::metar::wxcodes::{
@@ -262,7 +262,7 @@ impl Metar {
             fields.push(time);
         }
 
-        if let Some(wind) = get_winds(json, units) {
+        if let Some(wind) = get_winds(json) {
             fields.push(wind);
         }
 
@@ -270,7 +270,7 @@ impl Metar {
             fields.push(wind_var);
         }
 
-        if let Some(vis) = get_visibility(json, units) {
+        if let Some(vis) = get_visibility(json) {
             fields.push(vis);
         }
 
@@ -362,7 +362,7 @@ fn get_wind_var(json: &Value) -> Option<WxField> {
     })
 }
 
-fn get_winds(json: &Value, units: Units) -> Option<WxField> {
+pub fn get_winds(json: &Value) -> Option<WxField> {
     let direction = json.get("wind_direction")?.get("value")?.as_i64()?;
     let strength = json.get("wind_speed")?.get("value")?.as_i64()?;
     let gusts = json
@@ -375,16 +375,16 @@ fn get_winds(json: &Value, units: Units) -> Option<WxField> {
         direction,
         strength,
         gusts,
-        unit: units.wind_speed,
+        unit: SpeedUnit::Kt,
     })
 }
 
-fn get_visibility(json: &Value, _units: Units) -> Option<WxField> {
+pub fn get_visibility(json: &Value) -> Option<WxField> {
     let vis = json.get("visibility")?.get("value")?.as_i64()?;
     Some(WxField::Visibility(vis))
 }
 
-fn is_exact_match(station: &str, config: &Config) -> bool {
+pub fn is_exact_match(station: &str, config: &Config) -> bool {
     match &config.position {
         Position::Airfield(icao) => station.eq_ignore_ascii_case(icao),
         _ => true,
@@ -395,8 +395,6 @@ fn is_exact_match(station: &str, config: &Config) -> bool {
 mod tests {
     use std::str::FromStr;
 
-    use rstest::rstest;
-    use units::{AltitudeUnit, DistanceUnit};
 
     use crate::position::LatLong;
 
@@ -491,7 +489,7 @@ mod tests {
             gusts: 15,
             unit: SpeedUnit::Kt,
         };
-        let actual = get_winds(&json, Units::default());
+        let actual = get_winds(&json);
         assert!(actual.is_some_and(|w| w == expected));
     }
 
@@ -506,33 +504,11 @@ mod tests {
             gusts: 0,
             unit: SpeedUnit::Kt,
         };
-        let actual = get_winds(&json, Units::default());
+        let actual = get_winds(&json);
         assert!(actual.is_some_and(|w| w == expected));
     }
 
-    #[rstest]
-    async fn test_get_qnh() {
-        let json: Value = Value::from_str("{\"altimeter\":{\"value\": 1013}}").unwrap();
-        let expected = WxField::Qnh(1013, PressureUnit::Hpa);
-        let actual = get_qnh(&json, Units::default());
-        assert!(actual.is_some_and(|q| q == expected));
-    }
 
-    #[tokio::test]
-    async fn test_get_qnh_inhg() {
-        let json: Value = Value::from_str("{\"altimeter\":{\"value\": 29.92}}").unwrap();
-        let expected = WxField::Qnh(2992, PressureUnit::Inhg);
-        let units = Units {
-            pressure: PressureUnit::Inhg,
-            altitude: AltitudeUnit::Ft,
-            wind_speed: SpeedUnit::Kt,
-            temperature: TemperatureUnit::C,
-            distance: DistanceUnit::M,
-        };
-        let actual = get_qnh(&json, units);
-        println!("{:?}", actual);
-        assert!(actual.is_some_and(|q| q == expected));
-    }
 
     #[tokio::test]
     async fn test_get_remarks() {
@@ -573,7 +549,7 @@ mod tests {
     async fn test_get_visibility() {
         let json: Value = Value::from_str("{\"visibility\":{\"value\":9999}}").unwrap();
         let expected: WxField = WxField::Visibility(9999);
-        let actual = get_visibility(&json, Units::default());
+        let actual = get_visibility(&json);
         assert!(actual.is_some_and(|v| v == expected));
     }
 

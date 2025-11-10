@@ -16,6 +16,8 @@ If you provide the `-f` or `--file` flag followed by a path to a json file, WXfe
 
 If there is any problem with the provided arguments WXfetch will print an error message and default to geoip.
 
+If the `--taf` flag is present, instead of a METAR, a TAF (Terminal Aerodrome Forecast) is printed.
+
 ## Configuration
 
 The configuration is loaded from `~/.config/wxfetch/config.toml` or from a TOML-file as specified by the `-c` flag. If no configuration file is found it will default to sensible values.
