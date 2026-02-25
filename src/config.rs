@@ -16,9 +16,9 @@ use chrono::TimeDelta;
 use toml::{Table, Value};
 
 use crate::{
+    Args, Secrets,
     api::check_icao_code,
     position::{LatLong, Position},
-    Args, Secrets,
 };
 
 #[derive(PartialEq, Debug)]
@@ -35,6 +35,15 @@ pub struct Config {
     pub age_marginal: TimeDelta,
     pub visibility_minimum: i64,
     pub visibility_marginal: i64,
+    pub print_taf: bool,
+    /// TAF-specific: Maximum age for TAF forecasts (hours)
+    pub taf_age_maximum: TimeDelta,
+    /// TAF-specific: Marginal age for TAF forecasts (hours)
+    pub taf_age_marginal: TimeDelta,
+    /// TAF-specific: Highlight probability groups
+    pub taf_highlight_probability: bool,
+    /// TAF-specific: Show change group times
+    pub taf_show_change_times: bool,
 }
 
 impl Default for Config {
@@ -52,6 +61,11 @@ impl Default for Config {
             age_marginal: TimeDelta::hours(1),
             visibility_minimum: 1500,
             visibility_marginal: 5000,
+            print_taf: false,
+            taf_age_maximum: TimeDelta::hours(24),  // TAFs valid longer
+            taf_age_marginal: TimeDelta::hours(6),  // TAFs age slower
+            taf_highlight_probability: true,
+            taf_show_change_times: true,
         }
     }
 }
@@ -59,6 +73,10 @@ impl Default for Config {
 impl Config {
     pub async fn get_config(secrets: &Secrets, args: &Args) -> Config {
         let mut config: Config = read_config_file(args.config_file.clone());
+
+        if args.taf {
+            config.print_taf = true;
+        }
 
         if let Some(icao) = args.airfield.clone() {
             config.position = Position::Airfield(icao.clone());
@@ -164,6 +182,22 @@ fn read_config_file(config_filepath: Option<String>) -> Config {
             .and_then(Value::as_integer)
         {
             config.visibility_marginal = marginal;
+        }
+    }
+
+    if contents.contains_key("taf") {
+        let taf = &contents["taf"];
+        if let Some(maximum) = taf.get("taf_age_maximum").and_then(Value::as_integer) {
+            config.taf_age_maximum = TimeDelta::seconds(maximum);
+        }
+        if let Some(marginal) = taf.get("taf_age_marginal").and_then(Value::as_integer) {
+            config.taf_age_marginal = TimeDelta::seconds(marginal);
+        }
+        if let Some(highlight) = taf.get("taf_highlight_probability").and_then(Value::as_bool) {
+            config.taf_highlight_probability = highlight;
+        }
+        if let Some(show_times) = taf.get("taf_show_change_times").and_then(Value::as_bool) {
+            config.taf_show_change_times = show_times;
         }
     }
 
