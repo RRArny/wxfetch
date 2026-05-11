@@ -11,7 +11,7 @@
 // WxFetch - metar/wxcodes.rs
 
 use super::WxField;
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use regex::Regex;
 use serde_json::Value;
 use std::{fmt::Display, str::FromStr};
@@ -329,10 +329,10 @@ pub fn get_wxcodes_from_json(json: &Value) -> Vec<WxField> {
     let mut result: Vec<WxField> = Vec::new();
     if let Some(wxcodes) = json.get("wx_codes").and_then(|x| x.as_array()) {
         for code in wxcodes {
-            if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
-                if let Some(field) = wxcode_from_str(repr) {
-                    result.push(field);
-                }
+            if let Some(repr) = code.get("repr").and_then(|x| x.as_str())
+                && let Some(field) = wxcode_from_str(repr)
+            {
+                result.push(field);
             }
         }
     }
@@ -344,8 +344,8 @@ mod tests {
     use serde_json::Value;
     use std::str::FromStr;
 
-    use super::{get_wxcodes_from_json, WxCode, WxCodeIntensity};
-    use crate::metar::{wxcodes::WxCodeDescription, WxCodeProximity, WxField};
+    use super::{WxCode, WxCodeIntensity, get_wxcodes_from_json};
+    use crate::metar::{WxCodeProximity, WxField, wxcodes::WxCodeDescription};
 
     #[tokio::test]
     async fn test_get_regex() {
@@ -622,7 +622,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_intens_from_str_invalid() {
-        assert!(WxCodeIntensity::from_str("#").is_err())
+        assert!(WxCodeIntensity::from_str("#").is_err());
     }
 
     #[tokio::test]

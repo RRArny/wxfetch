@@ -1,24 +1,23 @@
-# Agent Instructions for wxfetch
+# Hermes Agent Configuration
 
-This document provides guidelines for AI agents working on the `wxfetch` codebase.
+## Coding Standards
 
-## Build, Lint, and Test
+### Clippy Pedantic Lints
+All code must pass `cargo clippy --all-targets -- -W clippy::pedantic` with zero warnings. To enforce this, always run:
 
-- **Build:** `cargo build`
-- **Run:** `cargo run`
-- **Lint:** `cargo clippy -- -W clippy::pedantic` (strict linting is enforced)
-- **Test:** `cargo test`
-- **Run a single test:** `cargo test -- --nocapture test_function_name`
-- **CI Pipeline:** See `.github/workflows/rust.yml` for the full sequence of checks.
+```sh
+cargo clippy --all-targets -- -W clippy::pedantic
+```
 
-## Code Style and Conventions
+This catches:
+- `uninlined_format_args` — use `format!("{var}")` instead of `format!("{}", var)`
+- `redundant_closure_for_method_calls` — use method paths directly
+- `cast_possible_truncation` — prefer `try_from` over `as` casts
+- `implicit_clone` — use `.clone()` explicitly instead of `.to_string()` on references
+- `needless_borrows_for_generic_args` — pass `[elem]` not `&[elem]`
+- `needless_raw_string_hashes` — use `r"..."` unless inner `"` or `\` needed
+- `semicolon_if_nothing_returned` — add `;` to statements that should be unit expressions
+- `float_cmp` — use `#[allow(clippy::float_cmp)]` in tests where exact comparison is intentional
 
-- **Formatting:** Use standard `rustfmt`.
-- **Imports:** Group standard, crate, and module imports separately.
-- **Types:** Use specific types where possible. Use `anyhow::Result` for functions that can fail.
-- **Naming:** Follow Rust's standard naming conventions (e.g., `snake_case` for functions/variables, `PascalCase` for structs/enums).
-- **Error Handling:** Use `?` for error propagation. Use `expect()` only for unrecoverable errors (e.g., config loading).
-- **Asynchronous Code:** Use `tokio` for async operations. Tests are written with `#[tokio::test]`.
-- **Modularity:** Keep parsing, API calls, and data structures in separate modules.
-- **Dependencies:** Use `serde` for JSON serialization/deserialization.
-- **Comments:** Add comments to explain complex logic, not to describe what the code does.
+### Pre-existing Issues
+The `async fn` / `let chains` edition-hint warnings in test modules are pre-existing and require a Rust edition bump (currently blocked by toolchain config). These are acknowledged and should be revisited when the project upgrades to edition 2024 enforcement.

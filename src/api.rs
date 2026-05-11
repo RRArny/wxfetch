@@ -56,9 +56,8 @@ async fn send_api_call(
     options: &str,
     secrets: &Secrets,
 ) -> Result<Response, Error> {
-    let uri = format!(
-        "https://avwx.rest/api/{endpoint}/{position}?onfail=nearest&options={options}"
-    );
+    let uri =
+        format!("https://avwx.rest/api/{endpoint}/{position}?onfail=nearest&options={options}");
     let resp: Response = Client::new()
         .get(uri)
         .header("Authorization", format!("BEARER {}", secrets.avwx_api_key))

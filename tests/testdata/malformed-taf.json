@@ -1,0 +1,13 @@
+{
+    "station": "KTEST",
+    "time": {"dt": "2024-06-21T12:00:00Z"},
+    "start_time": {"dt": "2024-06-21T13:00:00Z"},
+    "end_time": {"dt": "2024-06-22T12:00:00Z"},
+    "forecast": [
+        {
+            "invalid_field": "should_be_ignored",
+            "wind_direction": {"value": 270},
+            "wind_speed": "invalid_speed_string"
+        }
+    ]
+}

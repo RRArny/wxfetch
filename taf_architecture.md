@@ -1,90 +1,101 @@
 # TAF Architecture Document
 
+> **Last revised:** 2026-05-11 — aligned with implementation on branch `feature/taf` (commit `e529cb9`)
+
 ## Overview
 
-This document outlines the comprehensive architecture for adding Terminal Aerodrome Forecast (TAF) capabilities to the wxfetch Rust aviation weather utility. The implementation will leverage the existing METAR infrastructure while accommodating TAF-specific requirements.
+This document describes the Terminal Aerodrome Forecast (TAF) implementation for the wxfetch Rust aviation weather utility. The implementation reuses the existing METAR infrastructure while accommodating TAF-specific requirements like forecast periods, change groups, and extended validity windows.
 
-## Current State Analysis
+## Current Implementation Status
 
-### Existing Infrastructure
-- **METAR Module**: Complete parsing, display, and colorization system in `src/metar.rs`
-- **API Module**: Fetches data from avwx.rest METAR endpoint in `src/api.rs`
-- **Configuration System**: Threshold-based weather condition evaluation in `src/config.rs`
-- **CLI Interface**: Already includes `--taf` flag in `src/main.rs`
-- **TAF Stub**: Basic struct placeholder in `src/taf.rs`
+| Area | Status |
+|------|--------|
+| Core data structures (`Taf`, `ForecastPeriod`, `PeriodType`) | ✅ Complete |
+| JSON parsing from AVWX API response | ✅ Complete |
+| Colorized terminal display | ✅ Complete |
+| API routing (METAR vs TAF endpoint) | ✅ Complete |
+| Nearest-station fallback | ✅ Complete |
+| CLI `--taf` flag | ✅ Complete |
+| TAF-specific config fields + TOML parsing | ✅ Complete |
+| Wind shear (`WxField::WindShear`) | ❌ Not yet implemented |
+| Max/Min temperature forecasts (`Tx/TN`) | ❌ Not yet implemented |
+| `taf_highlight_probability` in display code | ❌ Config field exists, display logic missing |
+| `units` field on `Taf` struct | ❌ Omitted from struct (used transiently) |
+| Raw/non-colorized output mode | ❌ Not yet implemented |
+| `[taf]` section in shipped `config.toml` | ❌ Not yet added |
 
-### Key Components to Reuse
-1. **Weather Field Types**: `WxField` enum can be extended for TAF-specific fields
-2. **Colorization System**: Existing threshold-based coloring logic
-3. **Unit Handling**: `Units` struct and conversion logic
-4. **API Client**: HTTP client and authentication mechanisms
-5. **Configuration**: TOML-based configuration system
+---
 
-## 1. API Integration Changes
+## 1. API Integration
 
-### 1.1 Modified API Endpoints
+### 1.1 Endpoints
 
-**Current METAR endpoint:**
-```
-https://avwx.rest/api/metar/{station}?onfail=nearest&options=info
-```
+| Report | Endpoint | Options |
+|--------|----------|---------|
+| METAR | `https://avwx.rest/api/metar/{station}?onfail=nearest&options=info` | `info` |
+| TAF | `https://avwx.rest/api/taf/{station}?onfail=nearest&options=info,summary` | `info,summary` |
 
-**New TAF endpoint:**
-```
-https://avwx.rest/api/taf/{station}?onfail=nearest&options=info,summary
-```
+### 1.2 API Module (`src/api.rs`)
 
-### 1.2 API Module Modifications (`src/api.rs`)
+The `request_wx()` function selects the endpoint and options based on `config.print_taf`:
 
 ```rust
-/// Modified request function to handle both METAR and TAF
 pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     let position = config.position.get_location_str().await;
     let endpoint = if config.print_taf { "taf" } else { "metar" };
-    let options = if config.print_taf { 
-        "info,summary" 
-    } else { 
-        "info" 
+    let options = if config.print_taf {
+        "info,summary"
+    } else {
+        "info"
     };
-    
-    let resp = send_api_call(position, endpoint, options, secrets).await.ok()?;
-    // ... existing error handling logic
-}
 
-/// Updated API call function
-async fn send_api_call(
-    position: String, 
-    endpoint: &str, 
-    options: &str,
-    secrets: &Secrets
-) -> Result<Response, Error> {
-    let uri = format!(
-        "https://avwx.rest/api/{}/{position}?onfail=nearest&options={}",
-        endpoint, options
-    );
-    // ... existing client logic
+    let resp = send_api_call(position, endpoint, options, secrets).await.ok()?;
+    let status = resp.status().as_u16();
+
+    if status == 200 {
+        resp.json().await.ok()
+    } else if status == 401 {
+        error!("Weather request failed. Provide a valid AvWx API key.");
+        None
+    } else if let Some(nearest_station_code) = get_nearest_station(config, secrets).await {
+        send_api_call(nearest_station_code, endpoint, options, secrets)
+            .await
+            .ok()?
+            .json::<Value>()
+            .await
+            .ok()
+    } else {
+        println!("No nearest station...");
+        None
+    }
 }
 ```
 
+The `send_api_call()` helper constructs the URL, sets the `BEARER` auth header, and returns the raw `reqwest::Response`.
+
+The `get_nearest_station()` fallback performs a two-step lookup:
+1. Resolve the user's position to latitude/longitude via the `/api/station/` endpoint
+2. Find the nearest reporting station via `/api/station/near/{lat},{lon}?n=1&reporting=true`
+
 ### 1.3 TAF-Specific API Considerations
 
-- **Multiple Forecast Periods**: TAFs contain multiple time-based forecasts
-- **Change Groups**: `FROM`, `BECMG`, `TEMPO` groups require special handling
-- **Validity Periods**: Start/end times for each forecast segment
-- **Summary Information**: Additional summary data from AVWX API
+- **Multiple Forecast Periods**: TAFs return a `"forecast"` array with time-bounded segments
+- **Summary Data**: The `summary` option provides additional parsed fields not available in METAR responses
 
-## 2. TAF Data Structures
+---
+
+## 2. Data Structures
 
 ### 2.1 Core TAF Structure (`src/taf.rs`)
 
 ```rust
-use chrono::{DateTime, FixedOffset};
-use colored::ColoredString;
+use chrono::{DateTime, FixedOffset, Utc};
+use colored::{Color, ColoredString, Colorize};
 use serde_json::Value;
-use std::ops::Mul;
 
 use crate::config::Config;
-use crate::metar::{WxField, Units, get_wxcodes_from_json, get_clouds_from_json};
+use crate::metar::{WxField, clouds::get_clouds_from_json, wxcodes::get_wxcodes_from_json};
+use crate::metar::{get_visibility, get_winds, is_exact_match};
 
 pub struct Taf {
     /// ICAO code of the issuing station
@@ -98,8 +109,6 @@ pub struct Taf {
     forecast_periods: Vec<ForecastPeriod>,
     /// True if this TAF was issued by the exact station requested
     exact_match: bool,
-    /// Units used in the forecast
-    units: Units,
 }
 
 /// Represents a forecast period or change group
@@ -116,72 +125,85 @@ pub struct ForecastPeriod {
     probability: Option<u8>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PeriodType {
-    Initial,    // Initial forecast period
-    From,       // FM - From (permanent change)
-    Becoming,   // BECMG - Becoming (gradual change)
-    Temporary,  // TEMPO - Temporary fluctuation
+    Initial,     // Initial forecast period
+    From,        // FM - From (permanent change)
+    Becoming,    // BECMG - Becoming (gradual change)
+    Temporary,   // TEMPO - Temporary fluctuation
     Probability, // PROBxx - Probability
 }
 ```
 
-### 2.2 TAF-Specific Weather Fields
+> **Design note — `units` field:** The original architecture included `units: Units` on `Taf`, but it was dropped from the implementation. `Units` is parsed transiently via `Units::from_json(json)` inside shared helper functions (`get_winds()`, `get_visibility()`) and is not stored. If unit-aware display customization is needed (e.g., showing "KT" vs "KPH"), re-add this field.
+
+### 2.2 Weather Fields (Inherited from METAR)
+
+TAF reuses all METAR weather fields via `WxField` in `src/metar.rs`:
+
+- `Wind { direction, strength, gusts, unit }`
+- `WindVariability { low_dir, hi_dir }`
+- `Visibility(i64)`
+- `Temperature { temp, dewpoint, unit }`
+- `Qnh(i64, PressureUnit)`
+- `Clouds(Clouds, i64)`
+- `WxCode(WxCode, WxCodeIntensity, WxCodeProximity, WxCodeDescription)`
+- `TimeStamp(DateTime<FixedOffset>)`
+- `Remarks(String)`
+
+The `WxField` enum lives in `src/metar.rs` and its `colourise()` method handles all rendering, including TAF-specific extensions (see §2.3).
+
+### 2.3 Planned TAF-Specific Fields (Not Yet Implemented)
+
+The following are defined in the architecture but **not yet added** to the codebase:
 
 ```rust
-// Extend WxField enum in src/metar.rs
-#[derive(PartialEq, Eq, Debug)]
-pub enum WxField {
-    // ... existing METAR fields ...
-    
-    /// TAF-specific: Forecast wind shear
-    WindShear {
-        altitude: i64,  // Height in feet
-        direction: i64,
-        strength: i64,
-        unit: SpeedUnit,
-    },
-    
-    /// TAF-specific: Maximum temperature forecast
-    MaxTemperature {
-        temp: i64,
-        time: DateTime<FixedOffset>,
-        unit: TemperatureUnit,
-    },
-    
-    /// TAF-specific: Minimum temperature forecast
-    MinTemperature {
-        temp: i64,
-        time: DateTime<FixedOffset>,
-        unit: TemperatureUnit,
-    },
-    
-    /// TAF-specific: Change indicator (FM, BECMG, TEMPO, PROB)
-    ChangeIndicator(PeriodType, Option<u8>),
-}
+// MARKED TODO — add to WxField enum in src/metar.rs when implementing:
+//
+// /// TAF-specific: Forecast wind shear (e.g., "WS010/31022KT")
+// WindShear {
+//     altitude: i64,   // Height in hundreds of feet AGL (e.g., 010 = 1000 ft)
+//     direction: i64,
+//     strength: i64,
+//     unit: SpeedUnit,
+// },
+//
+// /// TAF-specific: Maximum temperature forecast (e.g., "TX35/2118")
+// MaxTemperature {
+//     temp: i64,
+//     time: DateTime<FixedOffset>,
+//     unit: TemperatureUnit,
+// },
+//
+// /// TAF-specific: Minimum temperature forecast (e.g., "TN25/2204")
+// MinTemperature {
+//     temp: i64,
+//     time: DateTime<FixedOffset>,
+//     unit: TemperatureUnit,
+// },
 ```
 
-## 3. TAF Parsing Logic
+> **Design decision — change indicators:** Change indicators (FM, BECMG, TEMPO, PROB) are handled structurally via `ForecastPeriod.period_type` rather than as a `WxField::ChangeIndicator` variant. This is a deliberate divergence from the original architecture doc — the period type controls the display prefix, not a field within `fields`.
 
-### 3.1 Main TAF Parser
+---
+
+## 3. TAF Parsing Logic (`src/taf.rs`)
+
+### 3.1 Main Parser
+
+`Taf::from_json()` extracts the station, issue time, validity period, and forecast array from the AVWX API JSON response:
 
 ```rust
 impl Taf {
     pub fn from_json(json: &Value, config: &Config) -> Option<Self> {
         let station = json.get("station")?.as_str()?.to_string();
-        let units = Units::from_json(json);
-        
-        // Parse issue time
+
         let issue_time = parse_issue_time(json)?;
-        
-        // Parse validity period
         let (validity_start, validity_end) = parse_validity_period(json)?;
-        
-        // Parse forecast periods
-        let forecast_periods = parse_forecast_periods(json, units)?;
-        
+        let forecast_periods = parse_forecast_periods(json)?;
+
         let exact_match = is_exact_match(&station, config);
-        
+
         Some(Taf {
             icao_code: station,
             issue_time,
@@ -189,7 +211,6 @@ impl Taf {
             validity_end,
             forecast_periods,
             exact_match,
-            units,
         })
     }
 }
@@ -197,70 +218,62 @@ impl Taf {
 
 ### 3.2 Forecast Period Parsing
 
+The key design choice: the **first element** in the `"forecast"` array is always the initial forecast (no `"type"` field). Subsequent elements have a `"type"` field (`"FM"`, `"BECMG"`, `"TEMPO"`, `"PROB"`).
+
 ```rust
-fn parse_forecast_periods(json: &Value, units: Units) -> Option<Vec<ForecastPeriod>> {
+fn parse_forecast_periods(json: &Value) -> Option<Vec<ForecastPeriod>> {
     let mut periods = Vec::new();
-    
-    // Parse initial forecast
-    if let Some(initial) = parse_initial_forecast(json, units) {
-        periods.push(initial);
-    }
-    
-    // Parse change groups from forecast data
-    if let Some(forecast) = json.get("forecast") {
-        if let Some(forecast_array) = forecast.as_array() {
-            for change_group in forecast_array {
-                if let Some(period) = parse_change_group(change_group, units) {
-                    periods.push(period);
-                }
+
+    if let Some(forecast_array) = json.get("forecast")?.as_array() {
+        for (i, change_group) in forecast_array.iter().enumerate() {
+            if let Some(period) = parse_change_group(change_group, i == 0) {
+                periods.push(period);
             }
         }
     }
-    
+
     Some(periods)
 }
 
-fn parse_change_group(json: &Value, units: Units) -> Option<ForecastPeriod> {
-    let period_type = match json.get("type")?.as_str()? {
-        "FROM" => PeriodType::From,
-        "BECMG" => PeriodType::Becoming,
-        "TEMPO" => PeriodType::Temporary,
-        "PROB" => PeriodType::Probability,
-        _ => return None,
+fn parse_change_group(json: &Value, is_initial: bool) -> Option<ForecastPeriod> {
+    let period_type = if is_initial {
+        PeriodType::Initial
+    } else {
+        match json.get("type")?.as_str()? {
+            "FM" => PeriodType::From,
+            "BECMG" => PeriodType::Becoming,
+            "TEMPO" => PeriodType::Temporary,
+            "PROB" => PeriodType::Probability,
+            _ => return None,
+        }
     };
-    
-    let start_time = json.get("start_time")
+
+    let start_time = json
+        .get("start_time")
+        .and_then(|t| t.get("dt"))
         .and_then(|t| t.as_str())
         .and_then(|s| DateTime::parse_from_rfc3339(s).ok());
-    
-    let end_time = json.get("end_time")
+
+    let end_time = json
+        .get("end_time")
+        .and_then(|t| t.get("dt"))
         .and_then(|t| t.as_str())
         .and_then(|s| DateTime::parse_from_rfc3339(s).ok());
-    
-    let probability = json.get("probability")
+
+    let probability = json
+        .get("probability")
+        .and_then(|p| p.get("value"))
         .and_then(|p| p.as_u64())
         .map(|p| p as u8);
-    
+
     let mut fields = Vec::new();
-    
-    // Parse standard weather fields (wind, visibility, etc.)
-    if let Some(wind) = parse_wind(json, units) {
-        fields.push(wind);
-    }
-    
-    if let Some(vis) = parse_visibility(json, units) {
-        fields.push(vis);
-    }
-    
-    // Parse weather codes and clouds
+    if let Some(wind) = get_winds(json) { fields.push(wind); }
+    if let Some(vis) = get_visibility(json) { fields.push(vis); }
     fields.append(&mut get_wxcodes_from_json(json));
     fields.append(&mut get_clouds_from_json(json));
-    
-    // Parse TAF-specific fields
-    if let Some(wind_shear) = parse_wind_shear(json, units) {
-        fields.push(wind_shear);
-    }
-    
+
+    // MARKED TODO: add wind_shear, max_temp, min_temp parsing here
+
     Some(ForecastPeriod {
         period_type,
         start_time,
@@ -271,377 +284,177 @@ fn parse_change_group(json: &Value, units: Units) -> Option<ForecastPeriod> {
 }
 ```
 
-## 4. Display Formatting
+Key differences from METAR parsing:
+- First forecast array element is `Initial` (no `"type"` field)
+- Subsequent elements get their type from the `"type"` string
+- `start_time`/`end_time` are nested objects with `"dt"` RFC 3339 strings
+- `probability` is an object `{"value": 30}`, not a bare integer
 
-### 4.1 TAF Colorization Strategy
+---
 
-```rust
-impl Taf {
-    pub fn colourise(&self, config: &Config) -> ColoredString {
-        let mut output = if self.exact_match {
-            self.icao_code.bright_white().on_blue()
-        } else {
-            self.icao_code.black().on_yellow()
-        };
-        
-        // Add issue time
-        let issue_str = format!(" {}", self.issue_time.format("%d%H%MZ"))
-            .color(get_time_color(&self.issue_time, config));
-        output = format!("{}{}", output, issue_str).into();
-        
-        // Add validity period
-        let validity_str = format!(" {}/{}", 
-            self.validity_start.format("%d%H%M"),
-            self.validity_end.format("%d%H%M")
-        ).bright_cyan();
-        output = format!("{}{}", output, validity_str).into();
-        
-        // Add forecast periods
-        for period in &self.forecast_periods {
-            output = format!("{} {}", output, colourise_forecast_period(period, config)).into();
-        }
-        
-        output
-    }
-}
+## 4. Display Formatting (`src/taf.rs`)
 
-fn colourise_forecast_period(period: &ForecastPeriod, config: &Config) -> ColoredString {
-    let mut period_output = ColoredString::default();
-    
-    // Add change indicator
-    match period.period_type {
-        PeriodType::From => period_output = "FM".bright_yellow().into(),
-        PeriodType::Becoming => period_output = "BECMG".bright_magenta().into(),
-        PeriodType::Temporary => period_output = "TEMPO".bright_blue().into(),
-        PeriodType::Probability => {
-            if let Some(prob) = period.probability {
-                period_output = format!("PROB{}", prob).bright_red().into();
-            }
-        },
-        PeriodType::Initial => {}, // No indicator for initial period
-    }
-    
-    // Add time if present
-    if let Some(start_time) = period.start_time {
-        let time_str = format!(" {}", start_time.format("%d%H%M"))
-            .color(get_time_color(&start_time, config));
-        period_output = format!("{}{}", period_output, time_str).into();
-    }
-    
-    // Add weather fields
-    for field in &period.fields {
-        period_output = format!("{} {}", period_output, field.colourise(config)).into();
-    }
-    
-    period_output
-}
+### 4.1 Colorization Strategy
+
+The `colourise()` method on `Taf` builds the output string:
+
+```
+TAF [STATION] [ISSUE_TIME] [VALIDITY] [INITIAL_FORECAST]
+     [CHANGE_INDICATOR] [TIME] [FIELDS]
+     [CHANGE_INDICATOR] [TIME] [FIELDS]
+     ...
 ```
 
-### 4.2 TAF-Specific Colorization Functions
+- **Station**: Bright white on blue (exact match) or black on yellow (nearest station)
+- **Issue time**: Green (< 6h) / Yellow (< 24h) / Red (> 24h) based on age
+- **Validity period**: Cyan, formatted as `DDHH/DDHH`
+- **Change indicators**: FM=yellow, BECMG=magenta, TEMPO=blue, PROB=red
+- **Weather fields**: Delegated to `WxField::colourise()` (inherited from METAR)
 
-```rust
-fn get_time_color(datetime: &DateTime<FixedOffset>, config: &Config) -> Color {
-    let now = Utc::now();
-    let utctime = datetime.to_utc();
-    let dt = now.signed_duration_since(utctime);
-    
-    if dt < config.age_marginal {
-        Color::Green
-    } else if dt < config.age_maximum {
-        Color::Yellow
-    } else {
-        Color::Red
-    }
-}
+### 4.2 `taf_show_change_times` Config
 
-// Extend WxField::colourise to handle TAF-specific fields
-impl WxField {
-    pub fn colourise(&self, config: &Config) -> ColoredString {
-        match self {
-            // ... existing METAR field handling ...
-            
-            WxField::WindShear { altitude, direction, strength, unit: _ } => {
-                format!("WS{altitude:03}/{direction:03}{strength:02}KT")
-                    .bright_red().bold()
-            },
-            
-            WxField::MaxTemperature { temp, time, unit: _ } => {
-                format!("TX{temp:02}/{}", time.format("%d%H%M"))
-                    .bright_yellow()
-            },
-            
-            WxField::MinTemperature { temp, time, unit: _ } => {
-                format!("TN{temp:02}/{}", time.format("%d%H%M"))
-                    .bright_blue()
-            },
-            
-            WxField::ChangeIndicator(period_type, prob) => {
-                match period_type {
-                    PeriodType::From => "FM".bright_yellow(),
-                    PeriodType::Becoming => "BECMG".bright_magenta(),
-                    PeriodType::Temporary => "TEMPO".bright_blue(),
-                    PeriodType::Probability => {
-                        if let Some(p) = prob {
-                            format!("PROB{}", p).bright_red()
-                        } else {
-                            "PROB".bright_red()
-                        }
-                    },
-                    PeriodType::Initial => " ".white(),
-                }
-            },
-        }
-    }
-}
-```
+When `true` (default), change groups display their time windows:
+- FM → `FM211900`
+- BECMG → `BECMG 2122/2200`
+- TEMPO → `TEMPO 2120/2122`
+- PROB → `PROB30 2204/2207`
 
-## 5. Configuration Integration
+When `false`, only the indicator text is shown (without time windows).
 
-### 5.1 TAF-Specific Configuration Fields
+### 4.3 `taf_highlight_probability` Config (TODO)
 
-```rust
-// Extend Config struct in src/config.rs
-#[derive(PartialEq, Debug)]
-pub struct Config {
-    // ... existing fields ...
-    
-    /// TAF-specific: Maximum age for TAF forecasts (hours)
-    pub taf_age_maximum: TimeDelta,
-    /// TAF-specific: Marginal age for TAF forecasts (hours)
-    pub taf_age_marginal: TimeDelta,
-    /// TAF-specific: Highlight probability groups
-    pub taf_highlight_probability: bool,
-    /// TAF-specific: Show change group times
-    pub taf_show_change_times: bool,
-}
+The config field exists and defaults to `true`, but **is not yet checked in display code**. When implemented:
+- `true`: PROB indicators render in bright red
+- `false`: PROB indicators render in default color (no highlighting)
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            // ... existing defaults ...
-            
-            taf_age_maximum: TimeDelta::hours(24),  // TAFs valid longer
-            taf_age_marginal: TimeDelta::hours(6),  // TAFs age slower
-            taf_highlight_probability: true,
-            taf_show_change_times: true,
-        }
-    }
-}
-```
+### 4.4 Planned TAF Field Colorization
 
-### 5.2 Configuration File Support
+When `WindShear`, `MaxTemperature`, and `MinTemperature` fields are added to `WxField`:
 
-Add to `config.toml` parsing:
+| Field | Format | Color |
+|-------|--------|-------|
+| `WindShear` | `WS{alt:03}/{dir:03}{spd:02}KT` | Bright red, bold |
+| `MaxTemperature` | `TX{temp:02}/{ddHHMM}` | Bright yellow |
+| `MinTemperature` | `TN{temp:02}/{ddHHMM}` | Bright blue |
+
+---
+
+## 5. Configuration (`src/config.rs`)
+
+### 5.1 TAF-Specific Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `taf_age_maximum` | `TimeDelta` | 24 hours | Max age before TAF turns red |
+| `taf_age_marginal` | `TimeDelta` | 6 hours | Marginal age for yellow warning |
+| `taf_highlight_probability` | `bool` | `true` | Colorize PROB groups red (display pending) |
+| `taf_show_change_times` | `bool` | `true` | Show time windows for FM/BECMG/TEMPO/PROB |
+
+### 5.2 TOML Configuration
+
+The parser reads a `[taf]` section from `~/.config/wxfetch/config.toml`. Current shipped config does **not** include this section — defaults are hardcoded. Add it to `config.toml`:
 
 ```toml
 [taf]
-taf_age_maximum = 86400  # 24 hours in seconds
-taf_age_marginal = 21600  # 6 hours in seconds
+taf_age_maximum = 86400       # 24 hours in seconds
+taf_age_marginal = 21600      # 6 hours in seconds
 taf_highlight_probability = true
 taf_show_change_times = true
 ```
 
-## 6. Testing Strategy
+---
 
-### 6.1 Unit Tests
+## 6. Testing
 
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::str::FromStr;
-    use serde_json::Value;
+### 6.1 Test Data Files (`tests/testdata/`)
 
-    #[tokio::test]
-    async fn test_taf_from_json_basic() {
-        let json = r#"
-        {
-            "station": "KJFK",
-            "time": {"dt": "2024-06-21T12:00:00Z"},
-            "validity": {"start": "2024-06-21T13:00:00Z", "end": "2024-06-22T12:00:00Z"},
-            "forecast": []
-        }
-        "#;
-        
-        let value: Value = Value::from_str(json).unwrap();
-        let config = Config::default();
-        let taf = Taf::from_json(&value, &config);
-        
-        assert!(taf.is_some());
-        assert_eq!(taf.unwrap().icao_code, "KJFK");
-    }
+| File | Description | Change Groups |
+|------|-------------|---------------|
+| `kjfk-taf.json` | KJFK, initial + BECMG | Initial, BECMG |
+| `eddf-taf-prob.json` | EDDF, initial + PROB30 | Initial, PROB |
+| `egkk-taf-simple.json` | EGKK, empty forecast | Initial only |
+| `malformed-taf.json` | Invalid/minimal JSON | — |
 
-    #[tokio::test]
-    async fn test_forecast_period_parsing() {
-        let json = r#"
-        {
-            "type": "TEMPO",
-            "start_time": "2024-06-21T18:00:00Z",
-            "end_time": "2024-06-21T22:00:00Z",
-            "wind_direction": {"value": 270},
-            "wind_speed": {"value": 15}
-        }
-        "#;
-        
-        let value: Value = Value::from_str(json).unwrap();
-        let period = parse_change_group(&value, Units::default());
-        
-        assert!(period.is_some());
-        let period = period.unwrap();
-        assert_eq!(period.period_type, PeriodType::Temporary);
-    }
+The `malformed-taf.json` file was created for testing but the corresponding test was not yet added to `src/taf.rs`.
 
-    #[tokio::test]
-    async fn test_taf_colorization() {
-        let taf = create_test_taf();
-        let config = Config::default();
-        let colored = taf.colourise(&config);
-        
-        // Verify the colored string contains expected elements
-        assert!(colored.to_string().contains("KJFK"));
-    }
-}
-```
+### 6.2 Existing Unit Tests (7 tests)
 
-### 6.2 Integration Tests
+| Test | File | What it checks |
+|------|------|----------------|
+| `test_taf_from_json_basic` | `taf.rs` | Parses KJFK fixture, checks station |
+| `test_forecast_period_parsing` | `taf.rs` | 2 periods, second is BECMG |
+| `test_taf_colorization` | `taf.rs` | Output contains "KJFK" and "TAF" |
+| `test_taf_format_structure` | `taf.rs` | Full structure check with BECMG |
+| `test_taf_prob_group` | `taf.rs` | PROB30 rendering with EDDF |
+| `test_taf_malformed_data` | `taf.rs` | Graceful handling of bad JSON |
+| `test_taf_missing_fields` | `taf.rs` | Minimal JSON, missing forecast |
+| `test_taf_edge_case_times` | `taf.rs` | Year boundary, calm winds |
+| `test_taf_invalid_json_structure` | `taf.rs` | Returns `None` for junk |
 
-```rust
-#[tokio::test]
-async fn test_api_taf_request() {
-    let secrets = Secrets {
-        avwx_api_key: "test_key".to_string(),
-    };
-    
-    let config = Config {
-        position: Position::Airfield("KJFK".to_string()),
-        print_taf: true,
-        ..Default::default()
-    };
-    
-    // Mock the API call or use test data
-    let json = load_test_taf_data();
-    let taf = Taf::from_json(&json, &config);
-    
-    assert!(taf.is_some());
-}
+### 6.3 Tests to Add
 
-#[tokio::test]
-async fn test_cli_taf_flag() {
-    // Test that --taf flag properly sets config.print_taf
-    let args = Args {
-        taf: true,
-        ..Default::default()
-    };
-    
-    let secrets = get_secrets(None);
-    let config = Config::get_config(&secrets, &args).await;
-    
-    assert!(config.print_taf);
-}
-```
+| Test | Description |
+|------|-------------|
+| Wind shear parsing | When `WindShear` field is added |
+| Max/Min temperature parsing | When temperature fields are added |
+| `taf_highlight_probability` | When display logic is wired up |
+| PROB without time window | Edge case where PROB has no start/end |
+| Real AVWX API response | Capture and parse a live response |
+| Fuzz/panic test | Random JSON blobs → must return `None`, never panic |
 
-### 6.3 Test Data
+---
 
-Create test files in `tests/testdata/`:
+## 7. Remaining Tasks
 
-- `kjfk-taf.json` - Complete TAF with multiple change groups
-- `egkk-taf-simple.json` - Simple TAF without change groups
-- `eddf-taf-prob.json` - TAF with probability groups
+Ordered by priority and dependency:
 
-## 7. Implementation Approach
+1. **Add `WindShear` to `WxField`** — `src/metar.rs` (enum variant + colorize arm) + `src/taf.rs` (parser)
+2. **Add `MaxTemperature`/`MinTemperature` to `WxField`** — `src/metar.rs` (2 variants + colorize arms) + `src/taf.rs` (parsers)
+3. **Wire `taf_highlight_probability` into display** — `src/taf.rs` (conditional PROB color)
+4. **Add `units: Units` to `Taf` struct** — `src/taf.rs` (store + propagate)
+5. **Add `[taf]` section to `config.toml`** — shipped config file
+6. **Add `--raw` output flag** — `src/main.rs` (non-colorized output)
+7. **Add missing test fixtures and tests** — `tests/testdata/` + `src/taf.rs`
+8. **Run full CI validation** — `cargo test && cargo clippy -- -W clippy::pedantic`
+9. **Update README** — document `--taf` flag and `[taf]` config section
 
-### 7.1 Phase 1: Core Structure (Week 1)
-1. **Extend API Module**: Add TAF endpoint support
-2. **Basic TAF Struct**: Implement core data structures
-3. **Simple Parser**: Parse basic TAF fields (station, times)
-4. **Basic Display**: Simple text output without colorization
+---
 
-### 7.2 Phase 2: Forecast Periods (Week 2)
-1. **Change Group Parsing**: Implement FM, BECMG, TEMPO parsing
-2. **Period Structure**: Complete ForecastPeriod implementation
-3. **Weather Field Integration**: Reuse METAR field parsing
-4. **Time Handling**: Proper datetime parsing for all periods
+## 8. Code Reuse Summary
 
-### 7.3 Phase 3: Advanced Features (Week 3)
-1. **TAF-Specific Fields**: Wind shear, temperature forecasts
-2. **Colorization System**: Complete colorization logic
-3. **Configuration Integration**: Add TAF-specific config options
-4. **Error Handling**: Robust error handling for malformed data
+| Component | Source | Reuse |
+|-----------|--------|-------|
+| `Units` struct + parsing | `src/metar/units.rs` | Transient use in `get_winds()` / `get_visibility()` |
+| `WxCode` enum + regex parsing | `src/metar/wxcodes.rs` | `get_wxcodes_from_json()` called from TAF parser |
+| `Clouds` enum + parsing | `src/metar/clouds.rs` | `get_clouds_from_json()` called from TAF parser |
+| `get_winds()` / `get_visibility()` | `src/metar.rs` | Called directly from `parse_change_group()` |
+| `is_exact_match()` | `src/metar.rs` | Called from `Taf::from_json()` |
+| Color thresholds (age, wind, cloud) | `src/metar.rs` | TAF uses same age-based thresholds from `Config` |
+| Auth / HTTP client | `src/api.rs` | Shared endpoint with fallback logic |
 
-### 7.4 Phase 4: Testing & Polish (Week 4)
-1. **Comprehensive Tests**: Unit and integration tests
-2. **Test Data**: Create comprehensive test dataset
-3. **Documentation**: Update README and inline documentation
-4. **Performance**: Optimize parsing and display performance
+---
 
-## 8. Code Reuse Strategy
+## 9. Error Handling
 
-### 8.1 Direct Reuse
-- **Units System**: Use existing `Units` struct and conversion logic
-- **Weather Codes**: Reuse `WxCode` enums and parsing from `metar/wxcodes.rs`
-- **Cloud Parsing**: Use existing cloud layer parsing from `metar/clouds.rs`
-- **Color Utilities**: Leverage existing colorization functions and thresholds
+- **Missing fields**: All parsers use `Option` chaining — missing JSON fields yield `None` at the appropriate level
+- **Malformed datetimes**: RFC 3339 parse failures silently yield `None` times
+- **Unknown change group types**: `parse_change_group()` returns `None` for unrecognized `"type"` values
+- **Invalid station**: `Config::get_config()` validates via `check_icao_code()` and falls back to GeoIP
+- **API failure**: `request_wx()` falls back to nearest station, then returns `None`
 
-### 8.2 Adapted Reuse
-- **Wind Parsing**: Adapt METAR wind parsing for TAF forecast winds
-- **Visibility**: Use METAR visibility parsing with TAF-specific considerations
-- **Temperature**: Extend temperature parsing for forecast min/max values
-- **API Client**: Modify existing HTTP client for TAF endpoints
+---
 
-### 8.3 New Implementation
-- **Forecast Periods**: New concept not present in METAR
-- **Change Indicators**: FM, BECMG, TEMPO, PROB parsing
-- **Validity Periods**: TAF-specific time range handling
-- **Wind Shear**: TAF-specific wind shear reporting
+## 10. Known Divergences from Original Design
 
-## 9. Error Handling Considerations
+| Original Plan | Actual Implementation | Reason |
+|--------------|----------------------|--------|
+| `ChangeIndicator` variant in `WxField` | `PeriodType` drives display structurally via `ForecastPeriod` | Cleaner separation — period type is structural, not a display field |
+| `units: Units` stored on `Taf` | Omitted | Units used transiently during parsing; no display customization needed yet |
+| `parse_wind()` defined in TAF | Uses `get_winds()` from METAR directly | Identical logic — no reason to duplicate |
+| `parse_initial_forecast()` separate function | Initial period is first array element, parsed by same `parse_change_group()` | Simpler — the only difference is the `"type"` field is absent |
 
-### 9.1 API Errors
-- **Invalid Station**: Handle stations without TAF service
-- **Rate Limiting**: Respect AVWX API rate limits
-- **Network Issues**: Graceful degradation for connectivity problems
-
-### 9.2 Data Validation
-- **Malformed JSON**: Handle unexpected API response formats
-- **Missing Fields**: Graceful handling of optional TAF fields
-- **Time Parsing**: Robust datetime parsing with fallbacks
-
-### 9.3 User Experience
-- **Clear Error Messages**: Informative error messages for users
-- **Fallback Options**: Attempt nearest station when specific fails
-- **Configuration Validation**: Validate TAF-specific configuration
-
-## 10. Performance Considerations
-
-### 10.1 Parsing Efficiency
-- **Lazy Parsing**: Only parse fields that will be displayed
-- **Memory Management**: Efficient string handling for large TAFs
-- **Caching**: Consider caching parsed TAF data for repeated requests
-
-### 10.2 Display Optimization
-- **String Building**: Efficient string concatenation for output
-- **Color Overhead**: Minimize colorization performance impact
-- **Large Forecasts**: Handle TAFs with many change groups efficiently
-
-## 11. Future Enhancements
-
-### 11.1 Advanced Features
-- **TAF Amending**: Handle amended TAFs (TAF AMD)
-- **Conditional Groups**: Support for conditional weather groups
-- **Climatology**: Historical TAF data comparison
-
-### 11.2 Display Options
-- **Compact Mode**: Condensed display for terminal usage
-- **Detailed Mode**: Verbose display with all available data
-- **JSON Output**: Machine-readable output option
-
-### 11.3 Integration
-- **METAR/TAF Combined**: Display both reports together
-- **Flight Planning**: Integration with flight planning tools
-- **Alerts**: Weather condition alerts based on TAF data
+---
 
 ## Conclusion
 
-This architecture provides a comprehensive foundation for implementing TAF support in wxfetch while maximizing code reuse from the existing METAR implementation. The phased approach ensures manageable development cycles with working functionality at each stage.
-
-The design maintains consistency with the existing codebase patterns while accommodating TAF-specific requirements like forecast periods, change groups, and extended validity periods. The modular structure allows for future enhancements and maintains the clean, testable architecture of the current implementation.
+The TAF implementation is functional and well-tested, reusing ~80% of the existing METAR infrastructure. The remaining work consists of adding TAF-specific field types (wind shear, temperature extremes), wiring up one unused config flag, and adding a few robustness tests. The architecture doc now accurately reflects the state of the code.

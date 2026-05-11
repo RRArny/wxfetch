@@ -39,10 +39,10 @@ pub fn get_clouds_from_json(json: &Value) -> Vec<WxField> {
     let mut result: Vec<WxField> = Vec::new();
     if let Some(wxcodes) = json.get("clouds").and_then(|x| x.as_array()) {
         for code in wxcodes {
-            if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
-                if let Some(cloud) = clouds_from_str(repr) {
-                    result.push(cloud);
-                }
+            if let Some(repr) = code.get("repr").and_then(|x| x.as_str())
+                && let Some(cloud) = clouds_from_str(repr)
+            {
+                result.push(cloud);
             }
         }
     }
@@ -111,7 +111,7 @@ mod tests {
 
     use crate::metar::WxField;
 
-    use super::{clouds_from_str, get_clouds_from_json, Clouds};
+    use super::{Clouds, clouds_from_str, get_clouds_from_json};
 
     #[tokio::test]
     async fn test_get_regex() {
