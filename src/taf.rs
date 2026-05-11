@@ -702,6 +702,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_taf_prob_without_time_window() {
+        let value = load_test_taf_data("eddf-taf-prob-notime.json");
+        let config = Config::default();
+        let taf = Taf::from_json(&value, &config);
+
+        assert!(taf.is_some(), "PROB without time window should still parse");
+        let taf = taf.unwrap();
+        assert_eq!(taf.forecast_periods.len(), 2);
+        assert_eq!(taf.forecast_periods[1].period_type, PeriodType::Probability);
+        assert_eq!(taf.forecast_periods[1].probability, Some(40));
+        // Should have no start/end time for the PROB group
+        assert!(taf.forecast_periods[1].start_time.is_none());
+        assert!(taf.forecast_periods[1].end_time.is_none());
+
+        // Verify it still colourises correctly (PROB40, no time window)
+        let colored = taf.colourise(&config);
+        let output = colored.to_string();
+        assert!(
+            output.contains("PROB40"),
+            "Output should contain PROB40, but got: {output}"
+        );
+        // Should NOT contain a time window pattern like "PROB40 2106/2112"
+        assert!(
+            !output.contains("PROB40 21"),
+            "PROB without time window should not include time range, but got: {output}"
+        );
+
+        // Should still contain the visibility
+        assert!(
+            output.contains("3000"),
+            "Output should contain visibility 3000, but got: {output}"
+        );
+    }
+
+    #[tokio::test]
     async fn test_taf_fuzz_malformed_inputs() {
         // Deterministic set of malformed JSON inputs to verify the parser
         // never panics — it must return None for all invalid inputs.
