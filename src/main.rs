@@ -72,8 +72,9 @@ struct Secrets {
 }
 
 fn get_secrets(param: Option<String>) -> Secrets {
-    let avwx_api_key =
-        param.unwrap_or(std::env::var("AVWX_API_KEY").expect("Could not load secret key."));
+    let avwx_api_key = param.unwrap_or_else(|| {
+        std::env::var("AVWX_API_KEY").expect("Could not load secret key.")
+    });
     Secrets { avwx_api_key }
 }
 
