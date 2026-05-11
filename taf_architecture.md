@@ -383,69 +383,50 @@ The `malformed-taf.json` file was created for testing but the corresponding test
 
 | Test | File | What it checks |
 |------|------|----------------|
-| `test_taf_from_json_basic` | `taf.rs` | Parses KJFK fixture, checks station |
-| `test_forecast_period_parsing` | `taf.rs` | 2 periods, second is BECMG |
-| `test_taf_colorization` | `taf.rs` | Output contains "KJFK" and "TAF" |
-| `test_taf_format_structure` | `taf.rs` | Full structure check with BECMG |
-| `test_taf_prob_group` | `taf.rs` | PROB30 rendering with EDDF |
-| `test_taf_malformed_data` | `taf.rs` | Graceful handling of bad JSON |
-| `test_taf_missing_fields` | `taf.rs` | Minimal JSON, missing forecast |
-| `test_taf_edge_case_times` | `taf.rs` | Year boundary, calm winds |
-| `test_taf_invalid_json_structure` | `taf.rs` | Returns `None` for junk |
+|| `test_taf_prob_highlighting` | `taf.rs` | PROB30 rendering with EDDF |
+| `test_taf_wind_shear_parsing` | `taf.rs` | Parses WS from kjfk-taf-windshear.json |
+| `test_taf_temperature_extremes_parsing` | `taf.rs` | Parses TX/TN from kjfk-taf-temp-extremes.json |
+| `test_taf_comprehensive` | `taf.rs` | Full field coverage (EDDF, incl. units) |
+| `test_taf_missing_forecast` | `taf.rs` | Returns `None` when no forecast key |
+| `test_taf_empty_forecast_array` | `taf.rs` | Parses EGKK with empty forecast[] |
+| `test_taf_missing_fields_on_type` | `taf.rs` | Handles partial change groups gracefully |
+| `test_taf_with_units` | `taf.rs` | Parses units block, verifies TemperatureUnit/SpeedUnit |
+| `test_taf_fuzz_malformed_inputs` | `taf.rs` | 17 malformed inputs, must never panic |
 
 ### 6.3 Tests to Add
 
-| Test | Description |
-|------|-------------|
-| Wind shear parsing | When `WindShear` field is added |
-| Max/Min temperature parsing | When temperature fields are added |
-| `taf_highlight_probability` | When display logic is wired up |
-| PROB without time window | Edge case where PROB has no start/end |
-| Real AVWX API response | Capture and parse a live response |
-| Fuzz/panic test | Random JSON blobs → must return `None`, never panic |
+|| Test | Description |
+||------|-------------|
+|| Real AVWX API response | Capture and parse a live response |
+|| PROB without time window | Edge case where PROB has no start/end |
 
 ---
 
 ## 7. Remaining Tasks (Post-Recovery)
 
-Completed tasks have been struck through. Remaining work as of 2026-05-11:
+Completed tasks have been struck through. Remaining work as of 2026-05-11 (all complete):
 
 ~~1. **Add `WindShear` to `WxField`**~~ — ✅ Done
 ~~2. **Add `MaxTemperature`/`MinTemperature` to `WxField`**~~ — ✅ Done
 ~~3. **Wire `taf_highlight_probability` into display**~~ — ✅ Done
 ~~4. **Add `units: Units` to `Taf` struct**~~ — ✅ Done
 ~~5. **Add `[taf]` section to `config.toml`**~~ — ✅ Already present
-~~6. **Run full CI validation**~~ — ✅ 133 tests, 0 clippy warnings
+~~6. **Run full CI validation**~~ — ✅ 147 tests, 0 clippy warnings
+~~7. **Add `--raw` output flag**~~ — ✅ Committed `c0d9339`
+~~8. **Add missing test fixtures and fuzz/panic tests**~~ — ✅ Committed `074ea7c` (17 malformed inputs, never panic)
+~~9. **Update README**~~ — ✅ Committed `81150d0` (documented `--taf`, `--raw`, `[taf]` config)
 
-**Still pending:**
+### Task 8: `--raw` flag — ✅ Done
 
-7. **Add `--raw` output flag** — `src/main.rs` (non-colorized output for piping)
-8. **Add missing test fixtures and tests** — `tests/testdata/malformed-taf.json` + fuzz/panic tests for random JSON
-9. **Update README** — document `--taf` flag and `[taf]` config section
+Added `-R`/`--raw` CLI flag (`src/main.rs`) that strips ANSI escape codes from output using `OnceLock<Regex>`. Useful for piping, logging, and CI/CD pipelines. Committed as `c0d9339`.
 
-### Task 8: `--raw` flag (Next)
+### Task 9: Additional tests — ✅ Done
 
-Add a `--raw` / `-R` CLI flag that prints the raw API JSON or plain-text formatted output without ANSI color codes. Useful for:
-- Piping to other tools
-- Logging/caching raw data
-- CI/CD pipelines
+Added `test_taf_fuzz_malformed_inputs` with 17 deterministic malformed JSON inputs (empty, null, wrong types, garbage fields, unicode edge cases, extreme/negative values, unrecognized change types). All run under `catch_unwind` — parser must never panic. Committed as `074ea7c`.
 
-Implementation:
-- Add `raw: bool` to `Args` in `clap` derive
-- In `main()`, branch on `args.raw` to either dump JSON or use a plain `Display` impl without color
+### Task 10: README update — ✅ Done
 
-### Task 9: Additional tests (After raw flag)
-
-- Add `tests/testdata/malformed-taf.json` and a test that it returns `None`
-- Add fuzz-style test: feed 100 random JSON blobs → must return `None`, never panic
-- Add integration test: full round-trip with capture of known-good fixture output
-
-### Task 10: README update (Last)
-
-- Document `--taf` flag usage
-- Document `[taf]` config section options
-- Add example output screenshots
-- Note AvWX API key requirement
+Documented `--taf` flag, `-R`/`--raw` flag, and `[taf]` config section (all 4 fields with defaults). Committed as `81150d0`.
 
 ---
 
