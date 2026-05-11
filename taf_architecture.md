@@ -398,7 +398,7 @@ The `malformed-taf.json` file was created for testing but the corresponding test
 || Test | Description |
 ||------|-------------|
 || PROB without time window | Edge case where PROB has no start/end |
-|| Real AVWX API response | Capture and parse a live response |
+|| Real AVWX API response | Capture and parse a live response — ⏳ Will implement later |
 
 ---
 
