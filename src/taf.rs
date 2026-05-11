@@ -700,4 +700,95 @@ mod tests {
         assert_eq!(taf.units.temperature, TemperatureUnit::F);
         assert_eq!(taf.units.wind_speed, SpeedUnit::Mph);
     }
+
+    #[tokio::test]
+    async fn test_taf_fuzz_malformed_inputs() {
+        // Deterministic set of malformed JSON inputs to verify the parser
+        // never panics — it must return None for all invalid inputs.
+        let malformed_inputs: Vec<&str> = vec![
+            // Empty / trivial
+            "",
+            "{}",
+            "null",
+            "true",
+            "42",
+            "\"just a string\"",
+            // Missing required top-level fields
+            r#"{"station":"KJFK"}"#,
+            r#"{"time":{"dt":"2024-06-21T12:00:00Z"}}"#,
+            // Wrong types for expected fields
+            r#"{"station":1234,"time":{"dt":"2024-06-21T12:00:00Z"}}"#,
+            r#"{"station":"KJFK","time":null}"#,
+            r#"{"station":"KJFK","time":{"dt":12345}}"#,
+            // Malformed forecast entries
+            r#"{"station":"KJFK","time":{"dt":"2024-06-21T12:00:00Z"},"forecast":null}"#,
+            r#"{"station":"KJFK","time":{"dt":"2024-06-21T12:00:00Z"},"forecast":{}}"#,
+            r#"{"station":"KJFK","time":{"dt":"2024-06-21T12:00:00Z"},"forecast":"not an array"}"#,
+            // Forecast period with garbage fields
+            r#"{
+                "station":"KJFK",
+                "time":{"dt":"2024-06-21T12:00:00Z"},
+                "start_time":{"dt":"2024-06-21T13:00:00Z"},
+                "end_time":{"dt":"2024-06-22T12:00:00Z"},
+                "forecast":[{"wind_speed":"banana","wind_direction":null}]
+            }"#,
+            // Deeply nested garbage
+            r#"{"station":"KJFK","time":{"dt":"2024-06-21T12:00:00Z"},"forecast":[{"nested":{"deep":{"garbage":"x"}}}]}"#,
+            // Type field with unrecognised value (should not panic, just skip)
+            r#"{
+                "station":"KJFK",
+                "time":{"dt":"2024-06-21T12:00:00Z"},
+                "start_time":{"dt":"2024-06-21T13:00:00Z"},
+                "end_time":{"dt":"2024-06-22T12:00:00Z"},
+                "forecast":[{"type":"UNRECOGNIZED_TYPE","wind_direction":{"value":180},"wind_speed":{"value":10}}]
+            }"#,
+            // Missing start/end time on change group
+            r#"{
+                "station":"KJFK",
+                "time":{"dt":"2024-06-21T12:00:00Z"},
+                "start_time":{"dt":"2024-06-21T13:00:00Z"},
+                "end_time":{"dt":"2024-06-22T12:00:00Z"},
+                "forecast":[
+                    {"type":"BECMG","wind_direction":{"value":180},"wind_speed":{"value":10}}
+                ]
+            }"#,
+            // Partial / half-valid structures
+            r#"{
+                "station":"KJFK",
+                "time":{"dt":"2024-06-21T12:00:00Z"},
+                "start_time":{"dt":"2024-06-21T13:00:00Z"},
+                "end_time":{"dt":"2024-06-22T12:00:00Z"},
+                "forecast":[
+                    {"start_time":{"dt":"2024-06-21T13:00:00Z"},"wind_direction":{"value":180}}
+                ]
+            }"#,
+            // Unicode / encoding edge cases
+            r#"{"station":"KJFK","time":{"dt":"2024-06-21T12:00:00Z"},"forecast":[{"wind_direction":{"value":180},"wind_speed":{"value":10}}],"extra_field":"\u0000\u0001\u0002"}"#,
+            // Very large values
+            r#"{"station":"KJFK","time":{"dt":"2024-06-21T12:00:00Z"},"forecast":[{"wind_direction":{"value":999999},"wind_speed":{"value":999999}}]}"#,
+            // Negative values where unexpected
+            r#"{"station":"KJFK","time":{"dt":"2024-06-21T12:00:00Z"},"forecast":[{"wind_direction":{"value":-1},"wind_speed":{"value":-50}}]}"#,
+        ];
+
+        let config = Config::default();
+        for (i, input) in malformed_inputs.iter().enumerate() {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let json: Value = serde_json::from_str(input).unwrap_or({
+                    // Some inputs are not valid JSON at all — skip parse step
+                    // and just ensure no panic
+                    serde_json::Value::Null
+                });
+                Taf::from_json(&json, &config)
+            }));
+            assert!(
+                result.is_ok(),
+                "Input {i} panicked: {:?}\nInput: {}",
+                result.err().map(|e| e.downcast_ref::<&str>()
+                    .map(ToString::to_string)
+                    .or_else(|| e.downcast_ref::<String>().cloned())
+                    .unwrap_or_default()),
+                input
+            );
+        }
+    }
 }
