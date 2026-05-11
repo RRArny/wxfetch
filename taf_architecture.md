@@ -397,8 +397,8 @@ The `malformed-taf.json` file was created for testing but the corresponding test
 
 || Test | Description |
 ||------|-------------|
-|| Real AVWX API response | Capture and parse a live response |
 || PROB without time window | Edge case where PROB has no start/end |
+|| Real AVWX API response | Capture and parse a live response |
 
 ---
 
@@ -413,8 +413,9 @@ Completed tasks have been struck through. Remaining work as of 2026-05-11 (all c
 ~~5. **Add `[taf]` section to `config.toml`**~~ — ✅ Already present
 ~~6. **Run full CI validation**~~ — ✅ 147 tests, 0 clippy warnings
 ~~7. **Add `--raw` output flag**~~ — ✅ Committed `c0d9339`
-~~8. **Add missing test fixtures and fuzz/panic tests**~~ — ✅ Committed `074ea7c` (17 malformed inputs, never panic)
-~~9. **Update README**~~ — ✅ Committed `81150d0` (documented `--taf`, `--raw`, `[taf]` config)
+~~9. **Add missing test fixtures and fuzz/panic tests**~~ — ✅ Committed `074ea7c` (17 malformed inputs, never panic)
+~~10. **Update README**~~ — ✅ Committed `81150d0` (documented `--taf`, `--raw`, `[taf]` config)
+~~11. **Add PROB-without-time-window test**~~ — ✅ Committed `0b6b501` (PROB40 with no start/end time)
 
 ### Task 8: `--raw` flag — ✅ Done
 
