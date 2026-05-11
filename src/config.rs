@@ -44,7 +44,7 @@ pub struct Config {
     pub taf_age_marginal: TimeDelta,
     /// TAF-specific: Highlight probability groups
     pub taf_highlight_probability: bool,
-/// TAF-specific: Show change group time windows
+    /// TAF-specific: Show change group time windows
     pub taf_show_change_times: bool,
     /// Raw output: disable ANSI color codes
     pub raw: bool,

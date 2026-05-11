@@ -563,6 +563,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_get_qnh() {
+        let json: Value = Value::from_str(
+            "{\"altimeter\":{\"value\":29.92}}",
+        )
+        .unwrap();
+        let expected = WxField::Qnh(2992, PressureUnit::Hpa);
+        let actual = get_qnh(&json, Units::default());
+        assert!(actual.is_some_and(|q| q == expected));
+    }
+
+    #[tokio::test]
     async fn test_get_temp() {
         let json: Value = Value::from_str(
             "{\"temperature\":{\"value\": 10}, \"dewpoint\":{\"value\": 9}}",

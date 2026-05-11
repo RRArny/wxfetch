@@ -19,11 +19,10 @@ use crate::{Config, Secrets};
 /// Given a Config and Secrets, sends a request to fetch a METAR and returns the report in JSON format wrapped in Some if successful, None otherwise.
 pub async fn request_wx(config: &Config, secrets: &Secrets) -> Option<Value> {
     let position = config.position.get_location_str().await;
-    let endpoint = if config.print_taf { "taf" } else { "metar" };
-    let options = if config.print_taf {
-        "info,summary"
+    let (endpoint, options) = if config.print_taf {
+        ("taf", "info,summary")
     } else {
-        "info"
+        ("metar", "info")
     };
 
     let resp = send_api_call(position, endpoint, options, secrets)
