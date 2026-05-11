@@ -295,7 +295,7 @@ impl Metar {
             fields.push(time);
         }
 
-        if let Some(wind) = get_winds(json) {
+        if let Some(wind) = get_winds(json, units) {
             fields.push(wind);
         }
 
@@ -398,7 +398,7 @@ fn get_wind_var(json: &Value) -> Option<WxField> {
     })
 }
 
-pub fn get_winds(json: &Value) -> Option<WxField> {
+pub fn get_winds(json: &Value, units: Units) -> Option<WxField> {
     let direction = json.get("wind_direction")?.get("value")?.as_i64()?;
     let strength = json.get("wind_speed")?.get("value")?.as_i64()?;
     let gusts = json
@@ -411,7 +411,7 @@ pub fn get_winds(json: &Value) -> Option<WxField> {
         direction,
         strength,
         gusts,
-        unit: SpeedUnit::Kt,
+        unit: units.wind_speed,
     })
 }
 
@@ -542,7 +542,7 @@ mod tests {
             gusts: 15,
             unit: SpeedUnit::Kt,
         };
-        let actual = get_winds(&json);
+        let actual = get_winds(&json, Units::default());
         assert!(actual.is_some_and(|w| w == expected));
     }
 
@@ -558,7 +558,7 @@ mod tests {
             gusts: 0,
             unit: SpeedUnit::Kt,
         };
-        let actual = get_winds(&json);
+        let actual = get_winds(&json, Units::default());
         assert!(actual.is_some_and(|w| w == expected));
     }
 

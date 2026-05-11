@@ -61,7 +61,7 @@ struct Args {
     file: Option<String>,
     #[arg(short, long, value_name = "AvWx API key")]
     key: Option<String>,
-    #[arg(long, value_name = "Print Terminal Aerodrome Forecast")]
+    #[arg(short = 't', long, value_name = "Print Terminal Aerodrome Forecast")]
     taf: bool,
     #[arg(short = 'R', long, value_name = "Raw output (no ANSI colors)")]
     raw: bool,
@@ -108,7 +108,9 @@ async fn main() {
     };
 
     if config.print_taf {
-        let taf_string = Taf::from_json(&json, &config).expect("").colourise(&config);
+        let taf_string = Taf::from_json(&json, &config)
+            .expect("Invalid TAF data received.")
+            .colourise(&config);
         print_output(&taf_string, config.raw);
     } else {
         let wx_string = Metar::from_json(&json, &config)

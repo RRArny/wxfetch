@@ -36,6 +36,7 @@ pub struct Config {
     pub age_marginal: TimeDelta,
     pub visibility_minimum: i64,
     pub visibility_marginal: i64,
+    /// Print Terminal Aerodrome Forecast (TAF) instead of METAR
     pub print_taf: bool,
     /// TAF-specific: Maximum age for TAF forecasts (hours)
     pub taf_age_maximum: TimeDelta,

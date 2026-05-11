@@ -205,7 +205,7 @@ fn parse_change_group(
     let mut fields: Vec<WxField> = Vec::new();
 
     // Parse standard weather fields (wind, visibility, etc.)
-    if let Some(wind) = get_winds(json) {
+    if let Some(wind) = get_winds(json, units) {
         fields.push(wind);
     }
 
