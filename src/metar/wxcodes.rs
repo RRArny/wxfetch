@@ -108,7 +108,7 @@ impl FromStr for WxCode {
             "po" => Ok(Self::Po),
             "sq" => Ok(Self::Sq),
             "ss" => Ok(Self::Ss),
-            _ => Err(anyhow!("Invalid weather code {}.", s)),
+            _ => Err(anyhow!("Invalid weather code {s}.")),
         }
     }
 }
@@ -154,7 +154,7 @@ impl FromStr for WxCodeProximity {
             "" => Ok(Self::OnStation),
             "vc" => Ok(Self::Vicinity),
             "dsnt" => Ok(Self::Distant),
-            _ => Err(anyhow!("Invalid weather proximity code {}.", s)),
+            _ => Err(anyhow!("Invalid weather proximity code {s}.")),
         }
     }
 }
@@ -213,7 +213,7 @@ impl FromStr for WxCodeDescription {
             "mi" => Ok(Self::Mi),
             "pr" => Ok(Self::Pr),
             "sh" => Ok(Self::Sh),
-            _ => Err(anyhow!("Invalid weather code descriptor {}.", s)),
+            _ => Err(anyhow!("Invalid weather code descriptor {s}.")),
         }
     }
 }
@@ -329,10 +329,11 @@ pub fn get_wxcodes_from_json(json: &Value) -> Vec<WxField> {
     let mut result: Vec<WxField> = Vec::new();
     if let Some(wxcodes) = json.get("wx_codes").and_then(|x| x.as_array()) {
         for code in wxcodes {
-            if let Some(repr) = code.get("repr").and_then(|x| x.as_str())
-                && let Some(field) = wxcode_from_str(repr)
-            {
-                result.push(field);
+            #[allow(clippy::collapsible_if)]
+            if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
+                if let Some(field) = wxcode_from_str(repr) {
+                    result.push(field);
+                }
             }
         }
     }
