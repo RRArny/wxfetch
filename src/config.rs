@@ -22,6 +22,7 @@ use crate::{
 };
 
 #[derive(PartialEq, Debug)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Config {
     pub position: Position,
     pub cloud_minimum: i64,
@@ -42,8 +43,10 @@ pub struct Config {
     pub taf_age_marginal: TimeDelta,
     /// TAF-specific: Highlight probability groups
     pub taf_highlight_probability: bool,
-    /// TAF-specific: Show change group times
+/// TAF-specific: Show change group time windows
     pub taf_show_change_times: bool,
+    /// Raw output: disable ANSI color codes
+    pub raw: bool,
 }
 
 impl Default for Config {
@@ -66,6 +69,7 @@ impl Default for Config {
             taf_age_marginal: TimeDelta::hours(6), // TAFs age slower
             taf_highlight_probability: true,
             taf_show_change_times: true,
+            raw: false,
         }
     }
 }
@@ -76,6 +80,10 @@ impl Config {
 
         if args.taf {
             config.print_taf = true;
+        }
+
+        if args.raw {
+            config.raw = true;
         }
 
         if let Some(icao) = args.airfield.clone() {

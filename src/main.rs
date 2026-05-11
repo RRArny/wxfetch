@@ -13,6 +13,11 @@
 use std::fs::File;
 use std::io::BufReader;
 
+use std::sync::OnceLock;
+
+use colored::ColoredString;
+use regex::Regex;
+
 use api::request_wx;
 use clap::Parser;
 
@@ -29,6 +34,14 @@ mod api;
 mod config;
 use config::Config;
 use serde_json::Value;
+
+/// Strip ANSI escape codes from a string for raw output.
+fn strip_ansi_escapes(input: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\x1b\[[0-9;]*m").unwrap())
+        .replace_all(input, "")
+        .into_owned()
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -50,6 +63,8 @@ struct Args {
     key: Option<String>,
     #[arg(long, value_name = "Print Terminal Aerodrome Forecast")]
     taf: bool,
+    #[arg(short = 'R', long, value_name = "Raw output (no ANSI colors)")]
+    raw: bool,
 }
 
 struct Secrets {
@@ -74,6 +89,14 @@ fn get_weather_from_file(filename: String) -> Value {
     serde_json::from_reader(reader).expect("Failed to read data from file.")
 }
 
+fn print_output(output: &ColoredString, raw: bool) {
+    if raw {
+        println!("{}", strip_ansi_escapes(output));
+    } else {
+        println!("{output}");
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
@@ -86,13 +109,13 @@ async fn main() {
 
     if config.print_taf {
         let taf_string = Taf::from_json(&json, &config).expect("").colourise(&config);
-        println!("{taf_string}");
+        print_output(&taf_string, config.raw);
     } else {
         let wx_string = Metar::from_json(&json, &config)
             .expect("Invalid weather data received.")
             .colourise(&config);
 
-        println!("{wx_string}");
+        print_output(&wx_string, config.raw);
     }
 }
 
@@ -203,6 +226,7 @@ mod test {
         assert!(args.file.is_none());
         assert!(args.key.is_none());
         assert!(!args.taf);
+        assert!(!args.raw);
     }
 
     #[test]
@@ -228,6 +252,14 @@ mod test {
 
         let args = Args::try_parse_from(["wxfetch", "--taf"]).unwrap();
         assert!(args.taf);
+    }
+
+    #[test]
+    fn test_args_with_raw_flag() {
+        use clap::Parser;
+
+        let args = Args::try_parse_from(["wxfetch", "-R"]).unwrap();
+        assert!(args.raw);
     }
 
     #[test]
@@ -274,5 +306,41 @@ mod test {
         assert!(args.taf);
         assert_eq!(args.key, Some("testkey".to_string()));
         assert_eq!(args.config_file, Some("config.toml".to_string()));
+    }
+
+    #[test]
+    fn test_args_raw_flag_combined() {
+        use clap::Parser;
+
+        let args = Args::try_parse_from(["wxfetch", "--taf", "-R"]).unwrap();
+        assert!(args.taf);
+        assert!(args.raw);
+    }
+
+    #[test]
+    fn test_strip_ansi_escapes() {
+        let input = "\x1b[1mHello\x1b[0m World";
+        let output = strip_ansi_escapes(input);
+        assert_eq!(output, "Hello World");
+    }
+
+    #[test]
+    fn test_strip_ansi_escapes_empty() {
+        let input = "No colors here";
+        let output = strip_ansi_escapes(input);
+        assert_eq!(output, "No colors here");
+    }
+
+    #[test]
+    fn test_strip_ansi_escapes_multiple() {
+        let input = "\x1b[31mred\x1b[0m \x1b[32mgreen\x1b[0m \x1b[34mblue\x1b[0m";
+        let output = strip_ansi_escapes(input);
+        assert_eq!(output, "red green blue");
+    }
+
+    #[test]
+    fn test_config_default_raw_false() {
+        let config = Config::default();
+        assert!(!config.raw);
     }
 }
