@@ -18,8 +18,8 @@ use std::{fmt::Display, str::FromStr};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(PartialEq, Eq, Debug, EnumIter)]
-/// Standardised codes for weather phenomena.
+#[derive(PartialEq, Eq, Debug, Clone, EnumIter)]
+/// Used to specify a weather phenomenon.
 pub enum WxCode {
     /// Rain.
     Ra,
@@ -113,7 +113,7 @@ impl FromStr for WxCode {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 /// Used to specify a weather phenomenon's intensity.
 pub enum WxCodeIntensity {
     Moderate,
@@ -121,7 +121,7 @@ pub enum WxCodeIntensity {
     Heavy,
 }
 
-#[derive(PartialEq, Eq, Debug, EnumIter)]
+#[derive(PartialEq, Eq, Debug, Clone, EnumIter)]
 /// Used to specify a weather phenomenon's distance from reporting staion.
 pub enum WxCodeProximity {
     /// On station.
@@ -159,7 +159,7 @@ impl FromStr for WxCodeProximity {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, EnumIter)]
+#[derive(PartialEq, Eq, Debug, Clone, EnumIter)]
 /// Used to further specify a weather phenomenon.
 pub enum WxCodeDescription {
     /// No description.

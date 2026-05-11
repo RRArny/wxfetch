@@ -19,7 +19,7 @@ use serde_json::Value;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(PartialEq, Eq, Debug, EnumIter)]
+#[derive(PartialEq, Eq, Debug, Clone, EnumIter)]
 /// Describes a cloud layer.
 pub enum Clouds {
     /// Sky clear.
