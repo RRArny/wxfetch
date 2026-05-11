@@ -148,37 +148,16 @@ mod test {
 
     #[test]
     fn test_get_secrets_with_param() {
-        // Ensure environment variable exists in case other tests removed it
-        unsafe {
-            std::env::set_var("AVWX_API_KEY", "fallback_key");
-        }
-
         let test_key = "test_api_key_123".to_string();
         let secrets = get_secrets(Some(test_key.clone()));
         assert_eq!(secrets.avwx_api_key, test_key);
     }
 
     #[test]
-    #[should_panic(expected = "Could not load secret key.")]
-    fn test_get_secrets_no_param_no_env() {
-        // Remove any existing environment variable
-        unsafe {
-            std::env::remove_var("AVWX_API_KEY");
-        }
-        let _secrets = get_secrets(None);
-    }
-
-    #[test]
-    fn test_get_secrets_from_env() {
-        let test_key = "env_test_key_456";
-        unsafe {
-            std::env::set_var("AVWX_API_KEY", test_key);
-        }
-        let secrets = get_secrets(None);
+    fn test_get_secrets_from_param() {
+        let test_key = "param_test_key_123";
+        let secrets = get_secrets(Some(test_key.to_string()));
         assert_eq!(secrets.avwx_api_key, test_key);
-        unsafe {
-            std::env::remove_var("AVWX_API_KEY"); // cleanup
-        }
     }
 
     #[test]

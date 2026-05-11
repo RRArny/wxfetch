@@ -1,0 +1,17 @@
+{
+    "station": "KJFK",
+    "time": { "dt": "2024-06-21T12:00:00Z" },
+    "wind_direction": { "value": 180 },
+    "wind_speed": { "value": 12 },
+    "wind_gust_speed": { "value": 22 },
+    "visibility": { "value": 10000 },
+    "temperature": { "value": 75 },
+    "dewpoint": { "value": 65 },
+    "altimeter": { "value": 30.01 },
+    "units": {
+        "temperature": "F",
+        "altimeter": "inhg",
+        "wind_speed": "mph"
+    },
+    "remarks": "AO2 SLP123"
+}

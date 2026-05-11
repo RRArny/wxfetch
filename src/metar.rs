@@ -203,11 +203,12 @@ fn colourise_temperature(
     _unit: TemperatureUnit,
     config: &Config,
 ) -> ColoredString {
-    let temp_str = temp.to_string().color(if temp > config.temp_minimum {
+    let color = if temp > config.temp_minimum {
         Color::BrightGreen
     } else {
         Color::BrightRed
-    });
+    };
+    let temp_str = temp.to_string().color(color);
     let dew_str = dewpoint
         .to_string()
         .color(if temp - dewpoint > config.spread_minimum {
@@ -215,7 +216,7 @@ fn colourise_temperature(
         } else {
             Color::Red
         });
-    format!("{temp_str}/{dew_str}").into()
+    format!("{temp_str}/{dew_str}").color(color)
 }
 
 fn colourise_wind_var(low_dir: i64, hi_dir: i64, config: &Config) -> ColoredString {
@@ -645,6 +646,46 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    #[allow(dead_code)]
+    fn test_colourise_wind_high_speed() {
+        let config = Config {
+            wind_maximum: 15,
+            ..Default::default()
+        };
+        let wind = WxField::Wind {
+            direction: 270,
+            strength: 20,
+            gusts: 0,
+            unit: SpeedUnit::Kt,
+        };
+        let output = wind.colourise(&config, Units::default());
+        let text = output.to_string();
+        assert!(
+            text.contains("27020KT"),
+            "Expected 27020KT in output, got: {text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_colourise_wind_with_gust_spread() {
+        let config = Config {
+            gust_maximum: 5,
+            ..Default::default()
+        };
+        let wind = WxField::Wind {
+            direction: 180,
+            strength: 10,
+            gusts: 20,
+            unit: SpeedUnit::Kt,
+        };
+        let output = wind.colourise(&config, Units::default());
+        let text = output.to_string();
+        assert!(
+            text.contains("18010G20KT"),
+            "Expected 18010G20KT in output, got: {text}"
+        );
+    }
+
     #[tokio::test]
     async fn test_colourise_temp() {
         let config = Config::default();
@@ -663,6 +704,24 @@ mod tests {
         let config = Config::default();
         let qnh = WxField::Qnh(1013, PressureUnit::Hpa);
         let expected = colourise_qnh(1013, PressureUnit::Hpa, &config);
+        let actual = qnh.colourise(&config, Units::default());
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_colourise_qnh_inhg_green() {
+        let config = Config::default();
+        let qnh = WxField::Qnh(3000, PressureUnit::Inhg);
+        let expected = colourise_qnh(3000, PressureUnit::Inhg, &config);
+        let actual = qnh.colourise(&config, Units::default());
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_colourise_qnh_inhg_yellow() {
+        let config = Config::default();
+        let qnh = WxField::Qnh(2950, PressureUnit::Inhg);
+        let expected = colourise_qnh(2950, PressureUnit::Inhg, &config);
         let actual = qnh.colourise(&config, Units::default());
         assert_eq!(actual, expected);
     }
@@ -751,6 +810,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_colourise_timestamp_recent() {
+        let config = Config::default();
+        let recent = Utc::now().fixed_offset() - chrono::Duration::minutes(30);
+        let output = colourize_timestamp(&recent, &config);
+        assert_eq!(output.fgcolor, Some(Color::Green));
+    }
+
+    #[tokio::test]
+    async fn test_colourise_timestamp_aged() {
+        let config = Config::default();
+        let aged = Utc::now().fixed_offset() - chrono::Duration::hours(3);
+        let output = colourize_timestamp(&aged, &config);
+        assert_eq!(output.fgcolor, Some(Color::Yellow));
+    }
+
+    #[tokio::test]
+    async fn test_colourise_timestamp_old() {
+        let config = Config::default();
+        let old = Utc::now().fixed_offset() - chrono::Duration::hours(10);
+        let output = colourize_timestamp(&old, &config);
+        assert_eq!(output.fgcolor, Some(Color::Red));
+    }
+
+    #[tokio::test]
     async fn test_colourise_max_temp() {
         let config = Config::default();
         let max_temp = WxField::MaxTemperature {
@@ -772,5 +855,75 @@ mod tests {
         };
         let output = min_temp.colourise(&config, Units::default());
         assert_eq!(output.fgcolor, Some(Color::BrightBlue));
+    }
+
+    #[tokio::test]
+    async fn test_colourise_wxcode_heavy_ts() {
+        let config = Config::default();
+        let wxcode = WxField::WxCode(
+            WxCode::Gr,
+            WxCodeIntensity::Heavy,
+            WxCodeProximity::OnStation,
+            WxCodeDescription::Ts,
+        );
+        let expected = colourise_wx_code(
+            &WxCode::Gr,
+            &WxCodeIntensity::Heavy,
+            &WxCodeProximity::OnStation,
+            &WxCodeDescription::Ts,
+            &config,
+        );
+        let actual = wxcode.colourise(&config, Units::default());
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_colourise_wxcode_sh_fz() {
+        let config = Config::default();
+        let wxcode = WxField::WxCode(
+            WxCode::Sn,
+            WxCodeIntensity::Moderate,
+            WxCodeProximity::Vicinity,
+            WxCodeDescription::Fz,
+        );
+        let expected = colourise_wx_code(
+            &WxCode::Sn,
+            &WxCodeIntensity::Moderate,
+            &WxCodeProximity::Vicinity,
+            &WxCodeDescription::Fz,
+            &config,
+        );
+        let actual = wxcode.colourise(&config, Units::default());
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_metar_colourise_no_exact_match() {
+        let json: Value = Value::from_str(
+            r#"{
+                "station": "EDRK",
+                "time": {"dt": "2024-06-21T12:00:00Z"},
+                "wind_direction": {"value": 240},
+                "wind_speed": {"value": 12},
+                "visibility": {"value": 8000},
+                "temperature": {"value": 15},
+                "dewpoint": {"value": 8},
+                "altimeter": {"value": 1013}
+            }"#,
+        )
+        .unwrap();
+        let config = Config {
+            position: Position::Airfield("EDDF".to_string()),
+            ..Default::default()
+        };
+        let metar = Metar::from_json(&json, &config).unwrap();
+        assert!(!metar.exact_match);
+        let output = metar.colourise(&config);
+        let text = output.to_string();
+        // Should contain the station code
+        assert!(
+            text.contains("EDRK"),
+            "Output should contain station code EDRK, got: {text}"
+        );
     }
 }

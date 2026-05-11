@@ -39,14 +39,28 @@ pub fn get_clouds_from_json(json: &Value) -> Vec<WxField> {
     let mut result: Vec<WxField> = Vec::new();
     if let Some(wxcodes) = json.get("clouds").and_then(|x| x.as_array()) {
         for code in wxcodes {
-            if let Some(repr) = code.get("repr").and_then(|x| x.as_str())
-                && let Some(cloud) = clouds_from_str(repr)
-            {
+            if let Some(cloud) = parse_cloud_entry(code) {
                 result.push(cloud);
             }
         }
     }
     result
+}
+
+fn parse_cloud_entry(code: &Value) -> Option<WxField> {
+    if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
+        return clouds_from_str(repr);
+    }
+    let coverage = code
+        .get("coverage")
+        .or_else(|| code.get("type"))
+        .and_then(|x| x.as_str());
+    let altitude = code.get("altitude").and_then(serde_json::Value::as_i64);
+    let cloud = coverage.as_ref().and_then(|c| c.parse::<Clouds>().ok());
+    if let (Some(_coverage), Some(altitude), Some(cloud)) = (coverage, altitude, cloud) {
+        return Some(WxField::Clouds(cloud, altitude));
+    }
+    None
 }
 
 /// From a METAR compliant cloud code representation string (`&str`) parses a `MetarField::Cloud`.

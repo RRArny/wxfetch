@@ -737,6 +737,81 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_taf_fm_and_tempo_parsing() {
+        let value = load_test_taf_data("kjfk-taf-fmtempo.json");
+        let config = Config::default();
+        let taf = Taf::from_json(&value, &config);
+
+        assert!(taf.is_some(), "TAF with FM and TEMPO should parse");
+        let taf = taf.unwrap();
+        assert_eq!(taf.forecast_periods.len(), 3);
+        assert_eq!(taf.forecast_periods[0].period_type, PeriodType::Initial);
+        assert_eq!(taf.forecast_periods[1].period_type, PeriodType::From);
+        assert_eq!(taf.forecast_periods[2].period_type, PeriodType::Temporary);
+    }
+
+    #[tokio::test]
+    async fn test_taf_unknown_period_type() {
+        let json: Value = Value::from_str(
+            r#"{
+                "station": "KTEST",
+                "time": {"dt": "2024-06-21T12:00:00Z"},
+                "start_time": {"dt": "2024-06-21T13:00:00Z"},
+                "end_time": {"dt": "2024-06-21T18:00:00Z"},
+                "issue_time": {"dt": "2024-06-21T12:00:00Z"},
+                "valid_time": {
+                    "start_time": {"dt": "2024-06-21T13:00:00Z"},
+                    "end_time": {"dt": "2024-06-21T18:00:00Z"}
+                },
+                "forecast": [
+                    {
+                        "type": "UNKNOWN",
+                        "start_time": {"dt": "2024-06-21T13:00:00Z"},
+                        "end_time": {"dt": "2024-06-21T18:00:00Z"}
+                    }
+                ]
+            }"#,
+        )
+        .unwrap();
+        let config = Config::default();
+        let taf = Taf::from_json(&json, &config);
+
+        assert!(taf.is_some(), "TAF should still parse with unknown period type");
+        let taf = taf.unwrap();
+        // The first forecast entry is always parsed as the Initial period regardless of type.
+        // Subsequent entries with unrecognised types are skipped.
+        assert_eq!(taf.forecast_periods.len(), 1, "Only the initial period should be kept; unknown non-initial types are skipped");
+        assert_eq!(taf.forecast_periods[0].period_type, PeriodType::Initial);
+    }
+
+    #[tokio::test]
+    async fn test_taf_missing_validity_time() {
+        let json: Value = Value::from_str(
+            r#"{
+                "station": "KTEST",
+                "time": {"dt": "2024-06-21T12:00:00Z"},
+                "issue_time": {"dt": "2024-06-21T12:00:00Z"}
+            }"#,
+        )
+        .unwrap();
+        let config = Config::default();
+        let taf = Taf::from_json(&json, &config);
+
+        assert!(taf.is_none(), "TAF without validity time should return None");
+    }
+
+    #[tokio::test]
+    async fn test_taf_egkk_simple_empty_forecast() {
+        let value = load_test_taf_data("egkk-taf-simple.json");
+        let config = Config::default();
+        let taf = Taf::from_json(&value, &config);
+
+        assert!(taf.is_some(), "Taf with empty forecast array should still parse");
+        let taf = taf.unwrap();
+        assert!(taf.forecast_periods.is_empty());
+        assert_eq!(taf.icao_code, "EGKK");
+    }
+#[tokio::test]
     async fn test_taf_fuzz_malformed_inputs() {
         // Deterministic set of malformed JSON inputs to verify the parser
         // never panics — it must return None for all invalid inputs.
