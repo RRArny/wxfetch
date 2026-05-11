@@ -370,8 +370,11 @@ fn get_time_color(datetime: &DateTime<FixedOffset>, config: &Config) -> Color {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
     use crate::config::Config;
+    use crate::metar::units::{SpeedUnit, TemperatureUnit};
     use serde_json::Value;
 
     fn load_test_taf_data(file_name: &str) -> Value {
@@ -508,5 +511,193 @@ mod tests {
             ..Config::default()
         };
         assert!(!config.taf_highlight_probability);
+    }
+
+    #[tokio::test]
+    async fn test_taf_wind_shear_parsing() {
+        let value = load_test_taf_data("kjfk-taf-windshear.json");
+        let config = Config::default();
+        let taf = Taf::from_json(&value, &config);
+
+        assert!(taf.is_some());
+        let taf = taf.unwrap();
+        assert_eq!(taf.forecast_periods.len(), 1);
+        let fields = &taf.forecast_periods[0].fields;
+        let ws_fields: Vec<_> = fields
+            .iter()
+            .filter(|f| matches!(f, WxField::WindShear { .. }))
+            .collect();
+        assert_eq!(ws_fields.len(), 1);
+        if let WxField::WindShear {
+            altitude,
+            direction,
+            strength,
+            ..
+        } = ws_fields[0]
+        {
+            assert_eq!(*altitude, 3000);
+            assert_eq!(*direction, 200);
+            assert_eq!(*strength, 35);
+        } else {
+            panic!("Expected WindShear variant");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_taf_temperature_extremes_parsing() {
+        let value = load_test_taf_data("kjfk-taf-temp-extremes.json");
+        let config = Config::default();
+        let taf = Taf::from_json(&value, &config);
+
+        assert!(taf.is_some());
+        let taf = taf.unwrap();
+        assert_eq!(taf.forecast_periods.len(), 1);
+        let fields = &taf.forecast_periods[0].fields;
+
+        let max_temps: Vec<_> = fields
+            .iter()
+            .filter(|f| matches!(f, WxField::MaxTemperature { .. }))
+            .collect();
+        let min_temps: Vec<_> = fields
+            .iter()
+            .filter(|f| matches!(f, WxField::MinTemperature { .. }))
+            .collect();
+
+        assert_eq!(max_temps.len(), 1);
+        assert_eq!(min_temps.len(), 1);
+
+        if let WxField::MaxTemperature { temp, .. } = max_temps[0] {
+            assert_eq!(*temp, 88);
+        } else {
+            panic!("Expected MaxTemperature variant");
+        }
+        if let WxField::MinTemperature { temp, .. } = min_temps[0] {
+            assert_eq!(*temp, 72);
+        } else {
+            panic!("Expected MinTemperature variant");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_taf_comprehensive() {
+        let value = load_test_taf_data("eddf-taf-comprehensive.json");
+        let config = Config::default();
+        let taf = Taf::from_json(&value, &config);
+
+        assert!(taf.is_some());
+        let taf = taf.unwrap();
+        assert_eq!(taf.icao_code, "EDDF");
+        assert_eq!(taf.forecast_periods.len(), 2);
+        assert_eq!(taf.forecast_periods[1].period_type, PeriodType::Becoming);
+
+        let fields = &taf.forecast_periods[0].fields;
+        // Should have wind, visibility, clouds, wxcodes, wind_shear,
+        // temperature, max_temp, min_temp
+        let has_wind = fields.iter().any(|f| {
+            matches!(f, WxField::Wind { .. })
+        });
+        assert!(has_wind);
+
+        let has_max_temp = fields.iter().any(|f| {
+            matches!(f, WxField::MaxTemperature { .. })
+        });
+        assert!(has_max_temp);
+
+        let has_min_temp = fields.iter().any(|f| {
+            matches!(f, WxField::MinTemperature { .. })
+        });
+        assert!(has_min_temp);
+    }
+
+    #[tokio::test]
+    async fn test_taf_missing_forecast() {
+        let json: Value = Value::from_str(
+            r#"{"station":"KTEST","time":{"dt":"2024-06-21T12:00:00Z"}}"#,
+        )
+        .unwrap();
+        let config = Config::default();
+        let taf = Taf::from_json(&json, &config);
+
+        assert!(taf.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_taf_empty_forecast_array() {
+        let value = load_test_taf_data("egkk-taf-simple.json");
+        let config = Config::default();
+        let taf = Taf::from_json(&value, &config);
+
+        assert!(taf.is_some(), "Taf with empty forecast array should still parse");
+        let taf = taf.unwrap();
+        assert!(taf.forecast_periods.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_taf_missing_fields_on_type() {
+        // Test change group with missing start_time/end_time is skipped
+        // but the rest still parses
+        let json: Value = Value::from_str(
+            r#"{
+                "station": "KTEST",
+                "time": {"dt": "2024-06-21T12:00:00Z"},
+                "start_time": {"dt": "2024-06-21T13:00:00Z"},
+                "end_time": {"dt": "2024-06-22T12:00:00Z"},
+                "forecast": [
+                    {
+                        "start_time": {"dt": "2024-06-21T13:00:00Z"},
+                        "end_time": {"dt": "2024-06-21T19:00:00Z"},
+                        "wind_direction": {"value": 180},
+                        "wind_speed": {"value": 10}
+                    },
+                    {
+                        "type": "TEMPO",
+                        "start_time": {"dt": "2024-06-21T15:00:00Z"},
+                        "end_time": {"dt": "2024-06-21T16:00:00Z"},
+                        "wind_direction": {"value": 270},
+                        "wind_speed": {"value": 20}
+                    }
+                ]
+            }"#,
+        )
+        .unwrap();
+        let config = Config::default();
+        let taf = Taf::from_json(&json, &config);
+
+        assert!(taf.is_some());
+        let taf = taf.unwrap();
+        assert_eq!(taf.forecast_periods.len(), 2);
+        assert_eq!(taf.forecast_periods[1].period_type, PeriodType::Temporary);
+    }
+
+    #[tokio::test]
+    async fn test_taf_with_units() {
+        let json: Value = Value::from_str(
+            r#"{
+                "station": "KTEST",
+                "time": {"dt": "2024-06-21T12:00:00Z"},
+                "start_time": {"dt": "2024-06-21T13:00:00Z"},
+                "end_time": {"dt": "2024-06-22T12:00:00Z"},
+                "units": {
+                    "temperature": "F",
+                    "wind_speed": "mph"
+                },
+                "forecast": [
+                    {
+                        "start_time": {"dt": "2024-06-21T13:00:00Z"},
+                        "end_time": {"dt": "2024-06-22T12:00:00Z"},
+                        "wind_direction": {"value": 180},
+                        "wind_speed": {"value": 15}
+                    }
+                ]
+            }"#,
+        )
+        .unwrap();
+        let config = Config::default();
+        let taf = Taf::from_json(&json, &config);
+
+        assert!(taf.is_some());
+        let taf = taf.unwrap();
+        assert_eq!(taf.units.temperature, TemperatureUnit::F);
+        assert_eq!(taf.units.wind_speed, SpeedUnit::Mph);
     }
 }
