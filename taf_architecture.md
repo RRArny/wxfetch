@@ -1,6 +1,6 @@
 # TAF Architecture Document
 
-> **Last revised:** 2026-05-11 — aligned with implementation on branch `feature/taf` (commit `e529cb9`)
+> **Last revised:** 2026-05-11 — aligned with implementation on branch `feature/taf` (commit `1f69184`)
 
 ## Overview
 
@@ -321,11 +321,13 @@ When `true` (default), change groups display their time windows:
 
 When `false`, only the indicator text is shown (without time windows).
 
-### 4.3 `taf_highlight_probability` Config (TODO)
+### 4.3 `taf_highlight_probability` Config
 
-The config field exists and defaults to `true`, but **is not yet checked in display code**. When implemented:
-- `true`: PROB indicators render in bright red
-- `false`: PROB indicators render in default color (no highlighting)
+This config field (default: `true`) is now checked in the `colourise_forecast_period()` function:
+- `true`: PROB indicators render in bright red (default)
+- `false`: PROB indicators render in bright black (dimmed)
+
+Implementation is in `src/taf.rs` lines ~230–240.
 
 ### 4.4 Planned TAF Field Colorization
 
@@ -404,19 +406,46 @@ The `malformed-taf.json` file was created for testing but the corresponding test
 
 ---
 
-## 7. Remaining Tasks
+## 7. Remaining Tasks (Post-Recovery)
 
-Ordered by priority and dependency:
+Completed tasks have been struck through. Remaining work as of 2026-05-11:
 
-1. **Add `WindShear` to `WxField`** — `src/metar.rs` (enum variant + colorize arm) + `src/taf.rs` (parser)
-2. **Add `MaxTemperature`/`MinTemperature` to `WxField`** — `src/metar.rs` (2 variants + colorize arms) + `src/taf.rs` (parsers)
-3. **Wire `taf_highlight_probability` into display** — `src/taf.rs` (conditional PROB color)
-4. **Add `units: Units` to `Taf` struct** — `src/taf.rs` (store + propagate)
-5. **Add `[taf]` section to `config.toml`** — shipped config file
-6. **Add `--raw` output flag** — `src/main.rs` (non-colorized output)
-7. **Add missing test fixtures and tests** — `tests/testdata/` + `src/taf.rs`
-8. **Run full CI validation** — `cargo test && cargo clippy -- -W clippy::pedantic`
+~~1. **Add `WindShear` to `WxField`**~~ — ✅ Done
+~~2. **Add `MaxTemperature`/`MinTemperature` to `WxField`**~~ — ✅ Done
+~~3. **Wire `taf_highlight_probability` into display**~~ — ✅ Done
+~~4. **Add `units: Units` to `Taf` struct**~~ — ✅ Done
+~~5. **Add `[taf]` section to `config.toml`**~~ — ✅ Already present
+~~6. **Run full CI validation**~~ — ✅ 133 tests, 0 clippy warnings
+
+**Still pending:**
+
+7. **Add `--raw` output flag** — `src/main.rs` (non-colorized output for piping)
+8. **Add missing test fixtures and tests** — `tests/testdata/malformed-taf.json` + fuzz/panic tests for random JSON
 9. **Update README** — document `--taf` flag and `[taf]` config section
+
+### Task 8: `--raw` flag (Next)
+
+Add a `--raw` / `-R` CLI flag that prints the raw API JSON or plain-text formatted output without ANSI color codes. Useful for:
+- Piping to other tools
+- Logging/caching raw data
+- CI/CD pipelines
+
+Implementation:
+- Add `raw: bool` to `Args` in `clap` derive
+- In `main()`, branch on `args.raw` to either dump JSON or use a plain `Display` impl without color
+
+### Task 9: Additional tests (After raw flag)
+
+- Add `tests/testdata/malformed-taf.json` and a test that it returns `None`
+- Add fuzz-style test: feed 100 random JSON blobs → must return `None`, never panic
+- Add integration test: full round-trip with capture of known-good fixture output
+
+### Task 10: README update (Last)
+
+- Document `--taf` flag usage
+- Document `[taf]` config section options
+- Add example output screenshots
+- Note AvWX API key requirement
 
 ---
 
@@ -449,7 +478,7 @@ Ordered by priority and dependency:
 | Original Plan | Actual Implementation | Reason |
 |--------------|----------------------|--------|
 | `ChangeIndicator` variant in `WxField` | `PeriodType` drives display structurally via `ForecastPeriod` | Cleaner separation — period type is structural, not a display field |
-| `units: Units` stored on `Taf` | Omitted | Units used transiently during parsing; no display customization needed yet |
+| `units: Units` stored on `Taf` | Added | Units now stored and propagated through to `WxField::colourise()` for unit suffix display |
 | `parse_wind()` defined in TAF | Uses `get_winds()` from METAR directly | Identical logic — no reason to duplicate |
 | `parse_initial_forecast()` separate function | Initial period is first array element, parsed by same `parse_change_group()` | Simpler — the only difference is the `"type"` field is absent |
 
