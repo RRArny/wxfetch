@@ -16,7 +16,13 @@ If you provide the `-f` or `--file` flag followed by a path to a json file, WXfe
 
 If there is any problem with the provided arguments WXfetch will print an error message and default to geoip.
 
-If the `--taf` flag is present, instead of a METAR, a TAF (Terminal Aerodrome Forecast) is printed.
+### TAF
+
+If the `--taf` flag is present, instead of a METAR, a TAF (Terminal Aerodrome Forecast) is printed for the given station.
+
+### Raw output
+
+By default, WXfetch outputs ANSI-coloured text. If you need plain text without escape codes, use the `-R` or `--raw` flag. This is useful for piping output to other tools or logging.
 
 ## Configuration
 
@@ -58,6 +64,13 @@ If none of the options above are supplied the program defaults to geoip. Positio
 
   - `visibility_minimum`: Minimum visibility in meters.
   - `visibility_marginal`: Marginal visibility.
+
+### TAF
+
+  - `taf_age_maximum`: Maximum age for TAF forecasts in seconds (default: `86400` = 24h).
+  - `taf_age_marginal`: Marginal age for TAF forecasts in seconds (default: `21600` = 6h).
+  - `taf_highlight_probability`: Highlight PROB groups in bright red (default: `true`).
+  - `taf_show_change_times`: Show change group time windows (default: `true`).
   
 ## Providing API keys
 
