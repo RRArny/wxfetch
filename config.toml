@@ -21,3 +21,13 @@ age_marginal = 3600
 [visibility]
 visibility_minimum = 1500
 visibility_marginal = 5000
+
+[taf]
+# Maximum age for TAF forecasts in seconds (default: 86400 = 24h)
+taf_age_maximum = 86400
+# Marginal age for TAF forecasts in seconds (default: 21600 = 6h)
+taf_age_marginal = 21600
+# Highlight PROB groups in bright red (default: true)
+taf_highlight_probability = true
+# Show change group time windows (default: true)
+taf_show_change_times = true
