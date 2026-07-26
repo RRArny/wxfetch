@@ -1,0 +1,19 @@
+{
+    "station": "KJFK",
+    "time": {"dt": "2024-06-21T12:00:00Z"},
+    "start_time": {"dt": "2024-06-21T13:00:00Z"},
+    "end_time": {"dt": "2024-06-22T12:00:00Z"},
+    "forecast": [
+        {
+            "start_time": {"dt": "2024-06-21T13:00:00Z"},
+            "end_time": {"dt": "2024-06-22T12:00:00Z"},
+            "wind_direction": {"value": 180},
+            "wind_speed": {"value": 10},
+            "wind_shear": {
+                "value": 3000,
+                "wind_direction": {"value": 200},
+                "wind_speed": {"value": 35}
+            }
+        }
+    ]
+}

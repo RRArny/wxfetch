@@ -11,15 +11,15 @@
 // WxFetch - metar/wxcodes.rs
 
 use super::WxField;
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use regex::Regex;
 use serde_json::Value;
 use std::{fmt::Display, str::FromStr};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(PartialEq, Eq, Debug, EnumIter)]
-/// Standardised codes for weather phenomena.
+#[derive(PartialEq, Eq, Debug, Clone, EnumIter)]
+/// Used to specify a weather phenomenon.
 pub enum WxCode {
     /// Rain.
     Ra,
@@ -108,12 +108,12 @@ impl FromStr for WxCode {
             "po" => Ok(Self::Po),
             "sq" => Ok(Self::Sq),
             "ss" => Ok(Self::Ss),
-            _ => Err(anyhow!("Invalid weather code {}.", s)),
+            _ => Err(anyhow!("Invalid weather code {s}.")),
         }
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 /// Used to specify a weather phenomenon's intensity.
 pub enum WxCodeIntensity {
     Moderate,
@@ -121,7 +121,7 @@ pub enum WxCodeIntensity {
     Heavy,
 }
 
-#[derive(PartialEq, Eq, Debug, EnumIter)]
+#[derive(PartialEq, Eq, Debug, Clone, EnumIter)]
 /// Used to specify a weather phenomenon's distance from reporting staion.
 pub enum WxCodeProximity {
     /// On station.
@@ -154,12 +154,12 @@ impl FromStr for WxCodeProximity {
             "" => Ok(Self::OnStation),
             "vc" => Ok(Self::Vicinity),
             "dsnt" => Ok(Self::Distant),
-            _ => Err(anyhow!("Invalid weather proximity code {}.", s)),
+            _ => Err(anyhow!("Invalid weather proximity code {s}.")),
         }
     }
 }
 
-#[derive(PartialEq, Eq, Debug, EnumIter)]
+#[derive(PartialEq, Eq, Debug, Clone, EnumIter)]
 /// Used to further specify a weather phenomenon.
 pub enum WxCodeDescription {
     /// No description.
@@ -213,7 +213,7 @@ impl FromStr for WxCodeDescription {
             "mi" => Ok(Self::Mi),
             "pr" => Ok(Self::Pr),
             "sh" => Ok(Self::Sh),
-            _ => Err(anyhow!("Invalid weather code descriptor {}.", s)),
+            _ => Err(anyhow!("Invalid weather code descriptor {s}.")),
         }
     }
 }
@@ -329,6 +329,7 @@ pub fn get_wxcodes_from_json(json: &Value) -> Vec<WxField> {
     let mut result: Vec<WxField> = Vec::new();
     if let Some(wxcodes) = json.get("wx_codes").and_then(|x| x.as_array()) {
         for code in wxcodes {
+            #[allow(clippy::collapsible_if)]
             if let Some(repr) = code.get("repr").and_then(|x| x.as_str()) {
                 if let Some(field) = wxcode_from_str(repr) {
                     result.push(field);
@@ -344,8 +345,8 @@ mod tests {
     use serde_json::Value;
     use std::str::FromStr;
 
-    use super::{get_wxcodes_from_json, WxCode, WxCodeIntensity};
-    use crate::metar::{wxcodes::WxCodeDescription, WxCodeProximity, WxField};
+    use super::{WxCode, WxCodeIntensity, get_wxcodes_from_json};
+    use crate::metar::{WxCodeProximity, WxField, wxcodes::WxCodeDescription};
 
     #[tokio::test]
     async fn test_get_regex() {
@@ -622,7 +623,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_intens_from_str_invalid() {
-        assert!(WxCodeIntensity::from_str("#").is_err())
+        assert!(WxCodeIntensity::from_str("#").is_err());
     }
 
     #[tokio::test]
